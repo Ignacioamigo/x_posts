@@ -11,7 +11,10 @@ import time
 from datetime import datetime
 
 from config import VALUE_THRESHOLD
-from historial import init_db, save_pick, get_picks_today, get_stats_month, get_racha_actual, save_resumen_diario
+from historial import (
+    init_db, save_pick, get_picks_today, get_stats_month, get_racha_actual,
+    save_resumen_diario, ya_publicado_hoy, marcar_publicado_hoy,
+)
 from scraper import get_todays_matches, get_match_context
 from odds_scraper import get_odds_from_oddsportal, detect_value
 from analyzer import analyze_match, is_publishable_pick
@@ -82,6 +85,10 @@ def _reset_x_counter():
 
 def preview_diario():
     """Genera expectación sobre el día sin revelar picks concretos."""
+    if ya_publicado_hoy("preview"):
+        logger.info("Preview diario ya publicado hoy, skipping.")
+        return
+
     now = datetime.now()
     fecha = now.strftime("%Y-%m-%d")
     dia_semana_es = ["Lunes", "Martes", "Miércoles", "Jueves",
@@ -124,6 +131,7 @@ def preview_diario():
             if publish_single_tweet(tweet):
                 _mark_x(1)
 
+        marcar_publicado_hoy("preview")
         logger.info("Preview diario publicado")
 
     except Exception as e:
@@ -276,6 +284,10 @@ def run_pipeline(sport: str = None, session: str = ""):
 
 def resumen_diario():
     """Lee el historial del día y publica el resumen con tono canalla."""
+    if ya_publicado_hoy("resumen"):
+        logger.info("Resumen diario ya publicado hoy, skipping.")
+        return
+
     logger.info("=== RESUMEN DIARIO ===")
 
     picks_hoy  = get_picks_today()
@@ -341,6 +353,7 @@ def resumen_diario():
             racha=racha,
             texto=msg_telegram,
         )
+        marcar_publicado_hoy("resumen")
         logger.info("Resumen diario publicado y guardado")
 
     except Exception as e:

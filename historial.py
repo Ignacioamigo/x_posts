@@ -50,6 +50,13 @@ def init_db():
                 texto_resumen        TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS eventos_diarios (
+                fecha  TEXT NOT NULL,
+                evento TEXT NOT NULL,
+                PRIMARY KEY (fecha, evento)
+            )
+        """)
         conn.commit()
     logger.info("Base de datos historial.db inicializada en %s", DB_PATH)
 
@@ -161,6 +168,29 @@ def get_racha_actual() -> int:
             break
 
     return racha if first == "WIN" else -racha
+
+
+def ya_publicado_hoy(evento: str) -> bool:
+    """Devuelve True si el evento (ej. 'preview', 'resumen') ya se marcó hoy."""
+    fecha = date.today().isoformat()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM eventos_diarios WHERE fecha=? AND evento=?",
+            (fecha, evento),
+        ).fetchone()
+    return row is not None
+
+
+def marcar_publicado_hoy(evento: str):
+    """Registra que el evento ya se ejecutó hoy (idempotente)."""
+    fecha = date.today().isoformat()
+    with _conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO eventos_diarios (fecha, evento) VALUES (?,?)",
+            (fecha, evento),
+        )
+        conn.commit()
+    logger.debug("Evento '%s' marcado como publicado para %s", evento, fecha)
 
 
 def save_resumen_diario(
