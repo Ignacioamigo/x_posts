@@ -356,8 +356,14 @@ def main():
     init_db()
     logger.info("Tipster Bot arrancando... (TESTING_MODE=%s)", TESTING_MODE)
 
+    # --now → ejecuta un pipeline inmediato y sale
+    if "--now" in sys.argv:
+        logger.info("--now: ejecutando pipeline darts/prime y saliendo...")
+        run_pipeline(sport="darts", session="prime")
+        logger.info("--now: pipeline finalizado.")
+        return
+
     if TESTING_MODE:
-        # En test: ejecutar pipeline una vez y salir del scheduler
         logger.info("TESTING_MODE: ejecutando pipeline de prueba...")
         run_pipeline()
         return
