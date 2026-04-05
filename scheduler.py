@@ -368,6 +368,25 @@ def main():
         run_pipeline()
         return
 
+    # Catch-up: ejecutar slots perdidos en las últimas 2 horas
+    now = datetime.now()
+    SLOTS = [
+        ("07:00", preview_diario, {}),
+        ("11:00", run_pipeline, {"sport": "table-tennis", "session": "mañana"}),
+        ("13:00", run_pipeline, {"sport": "table-tennis", "session": "tarde"}),
+        ("17:00", run_pipeline, {"sport": "darts",        "session": "tarde"}),
+        ("19:00", run_pipeline, {"sport": "darts",        "session": "prime"}),
+        ("21:00", run_pipeline, {"sport": "table-tennis", "session": "noche"}),
+        ("23:30", resumen_diario, {}),
+    ]
+    for slot_time, func, kwargs in SLOTS:
+        h, m = map(int, slot_time.split(":"))
+        slot_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        diff = (now - slot_dt).total_seconds()
+        if 0 <= diff <= 7200:  # dentro de las últimas 2 horas
+            logger.info("Catch-up: ejecutando slot %s perdido hace %.0f min", slot_time, diff / 60)
+            func(**kwargs)
+
     # Slots diarios
     schedule.every().day.at("07:00").do(preview_diario)
     schedule.every().day.at("11:00").do(run_pipeline, sport="table-tennis", session="mañana")

@@ -140,9 +140,9 @@ TONO Y EJEMPLOS:
 
 Si el día fue POSITIVO (profit_dia > 0):
 "🎯 CIERRE DEL DÍA
-{detalle_picks}
+{{detalle_picks}}
 
-Hoy: +{profit_dia}u 📈
+Hoy: +{{profit_dia}}u 📈
 Mes: +{profit_mes}u de {total_mes} picks 🔥
 Racha: {racha} verdes seguidos
 
@@ -155,7 +155,7 @@ Si el día fue NEGATIVO (profit_dia < 0):
 ❌ Día de mierda, seamos honestos.
 Los picks no entraron. Pasa.
 
-Hoy: {profit_dia}u 📉
+Hoy: {{profit_dia}}u 📉
 Mes: {profit_mes}u de {total_mes} picks (seguimos en verde 💚)
 Racha: reiniciando...
 
