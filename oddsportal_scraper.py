@@ -33,16 +33,35 @@ URLS_HANDBALL = [
 
 def _build_driver() -> webdriver.Chrome:
     opts = Options()
+
+    # Flags esenciales para Linux server / contenedor sin pantalla
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
+    opts.add_argument("--disable-setuid-sandbox")
+    opts.add_argument("--disable-extensions")
+    opts.add_argument("--disable-background-networking")
+    opts.add_argument("--disable-default-apps")
+    opts.add_argument("--disable-sync")
+    opts.add_argument("--no-first-run")
+    opts.add_argument("--remote-debugging-port=0")
     opts.add_argument("--window-size=1920,1080")
     opts.add_argument("--lang=es-ES")
     opts.add_argument(
-        "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "user-agent=Mozilla/5.0 (X11; Linux x86_64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     )
+
+    # Buscar binario de Chrome/Chromium instalado en Linux
+    import shutil
+    for binary in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+        path = shutil.which(binary)
+        if path:
+            opts.binary_location = path
+            logger.info("Chrome binario encontrado: %s", path)
+            break
+
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=opts)
     driver.set_page_load_timeout(30)
