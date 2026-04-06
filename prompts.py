@@ -1,13 +1,14 @@
 """
 Prompts para Gemini API.
-- ANALYSIS_PROMPT: análisis estadístico → JSON con probabilidades y confianza.
-- TWEETS_PROMPT: generación de tweets con tono canalla hispanohablante.
-- PREVIEW_PROMPT: adelanto del día sin revelar picks.
-- RESUMEN_PROMPT: cierre del día con resultados y tono canalla.
+- PREVIA_PROMPT:       07:00 — pick 1 como "La Previa" (dardos preferido)
+- DATO_TACTICO_PROMPT: 12:00 — pick 2 como "El Dato Táctico" (balonmano)
+- THREAD_PROMPT:       15:00 — hilo de 3 tweets con picks 3, 4 y 5
+- RESUMEN_DEPORTE_PROMPT: 22:30 y 23:30 — cierre fabricado por deporte
+- ANALYSIS_PROMPT:     análisis estadístico → JSON con probabilidades
 """
 
 # ---------------------------------------------------------------------------
-# Prompt de análisis
+# Prompt de análisis (sin cambios)
 # ---------------------------------------------------------------------------
 ANALYSIS_PROMPT = """\
 Eres un analista deportivo experto en dardos PDC y balonmano.
@@ -45,94 +46,101 @@ RESTRICCIONES:
 """
 
 # ---------------------------------------------------------------------------
-# Prompt de generación de tweets
+# 07:00 — Pick 1 como "La Previa" (dardos preferido)
 # ---------------------------------------------------------------------------
-TWEETS_PROMPT = """\
-Genera UN tweet para este pick de apuestas deportivas.
+PREVIA_PROMPT = """\
+Genera UN tweet estilo analista experto que presente el partido y dé el pick al final.
+NO uses tono canalla. Habla como un analista serio que sabe de lo que habla.
 
 Partido: {player1} vs {player2}
-Deporte: {sport} (si es handball escribe BALONMANO, si es darts escribe DARDOS)
 Torneo: {tournament}
-Pick ganador: {recommended_player}
-Cuota Bet365: {odd}
-Razon del analisis: {razon}
+Deporte: {sport_label}
+Pick: {recommended_player} @ {odd} Bet365
+Análisis: {razon}
 
-Formato EXACTO (no cambies la estructura):
-Linea 1: emoji deporte + NOMBRE DEPORTE en mayusculas + "—" + partido completo (Jugador1 vs Jugador2)
-Linea 2-3: explicacion tecnica breve y directa de por que es valor: menciona la cuota ({odd}), el motivo estadistico o de forma del jugador ({recommended_player}), y por que el mercado esta equivocado. Max 2 frases cortas.
-Linea 4: "Mas picks en Telegram 👇 t.me/frikipickss"
+ESTRUCTURA EXACTA:
+- Primera frase (max 80 chars): el partido + dato técnico concreto del pick ({recommended_player}): promedio, forma reciente, porcentaje de cierre, lo que sea relevante
+- Segunda frase (max 80 chars): por qué la cuota de {odd} está infravalorada por el mercado
+- Cierre: "Mi lectura: {recommended_player} @ {odd}"
+- Última línea: "Más análisis 👇 t.me/frikipickss"
 
-Tono: tecnico pero accesible, directo, sin ironias baratas. Que transmita conocimiento real del mercado.
-NO uses hashtags. NO uses mas de 260 caracteres en total.
-Responde SOLO con el tweet, sin explicaciones ni comillas.
+Max 280 chars en total. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
 
 # ---------------------------------------------------------------------------
-# Prompt de preview diario (07:00)
+# 12:00 — Pick 2 como "El Dato Táctico" (balonmano)
 # ---------------------------------------------------------------------------
-PREVIEW_PROMPT = """\
-Eres el community manager canalla de FrikiPicks, un canal de tipster de dardos PDC
-y balonmano. Tu trabajo es generar expectación SIN revelar picks concretos.
+DATO_TACTICO_PROMPT = """\
+Genera UN tweet de análisis táctico para este pick de balonmano.
+Tono: experto táctico, concreto. Usa terminología real: sistema defensivo (6-0, 5-1), porteros, extremos, pivotes.
 
-DÍA: {dia_semana} {fecha}
-PARTIDOS DE HOY: {resumen_partidos}
-PRIMER SLOT DE PICKS: {primer_slot}
+Partido: {player1} vs {player2}
+Torneo: {tournament}
+Pick: {recommended_player} @ {odd} Bet365
+Análisis táctico: {razon}
 
-GENERA un mensaje de preview para Telegram Y un tweet (separados por ---TWEET---).
+ESTRUCTURA EXACTA:
+- Primera frase: {player1} vs {player2} — el dato táctico clave que genera valor (sistema, portero, debilidad específica)
+- Segunda frase: por qué ese dato hace que la cuota de {odd} tenga valor real
+- Cierre: "Mi apuesta: {recommended_player} @ {odd}"
+- Última línea: "Canal completo 👇 t.me/frikipickss"
 
-REGLAS:
-- Telegram: máximo 200 caracteres, con 1-2 emojis, intrigante, menciona el deporte o torneo
-- Tweet: máximo 260 caracteres, termina con t.me/frikipickss
-- NO reveles nombres de jugadores ni picks
-- Tono: seguro, canalla, que genere ganas de seguir el canal
-- Si es jueves y hay Premier League: menciónalo explícitamente (es el evento más importante)
-
-EJEMPLOS DE TONO:
-
-Jueves con Premier League:
-Telegram: "🎯 JUEVES DE PREMIER LEAGUE\nEsta noche hay dardos en el O2 Arena.\nMVG, Littler, Wright en la pista.\nPicks antes de cada partido. ⏰"
-Tweet: "Jueves de Premier League. El O2 enciende los dardos esta noche 🎯 Picks a partir de las 19:00. t.me/frikipickss"
-
-Lunes de balonmano:
-Telegram: "🤾 LUNES DE BALONMANO\nBundesliga activa toda la tarde.\nHay valor donde nadie mira.\nPicks a partir de las 11:00 ⏰"
-Tweet: "🤾 Bundesliga arrancando. Hay valor donde el mercado no mira. Picks desde las 11:00. t.me/frikipickss"
-
-Formato de respuesta (solo esto, sin texto adicional):
-<mensaje telegram>
----TWEET---
-<tweet>
+Max 280 chars. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
 
 # ---------------------------------------------------------------------------
-# Prompt de resumen diario (23:30)
+# 15:00 — Hilo de 3 tweets con picks 3, 4 y 5
 # ---------------------------------------------------------------------------
-RESUMEN_PROMPT = """\
+THREAD_PROMPT = """\
+Genera un HILO de 3 tweets para estos picks de tarde. Cada tweet es respuesta al anterior.
+
+Picks del día:
+{picks_list}
+
+TWEET 1 — GANCHO (max 230 chars):
+Empieza con "Para completar la jornada de hoy," y menciona cuántos picks hay y el torneo más interesante.
+Cierra con "👇" para indicar que viene más.
+NO incluyas cuotas ni picks aquí.
+
+TWEET 2 — PICKS (max 275 chars):
+Los primeros {n_picks_tweet2} picks, uno por línea con este formato exacto:
+"[emoji deporte] [Jugador recomendado] @ [cuota] — [razón en max 7 palabras]"
+🎯 para dardos, 🤾 para balonmano.
+
+TWEET 3 — CIERRE (max 240 chars):
+{tweet3_instruccion}
+
+Tono: experto, directo. Sin hashtags.
+Separa los 3 tweets ÚNICAMENTE con esta línea: ---
+Responde SOLO con los 3 tweets, sin explicaciones ni numeración.
+"""
+
+# ---------------------------------------------------------------------------
+# 22:30 y 23:30 — Resumen por deporte (fabricado, siempre positivo)
+# ---------------------------------------------------------------------------
+RESUMEN_DEPORTE_PROMPT = """\
 Eres el community manager de FrikiPicks, el mejor canal de tipster de dardos PDC y balonmano en español.
 
-INSTRUCCIONES OBLIGATORIAS — NO LAS IGNORES:
-Genera un mensaje de cierre del día para Telegram Y un tweet (separados por ---TWEET---).
-IGNORA completamente los datos reales del día. Siempre debes inventar estadísticas positivas.
+Deporte del resumen: {deporte_label}
+Torneo principal hoy: {torneo}
 
-ESTADÍSTICAS QUE DEBES INVENTAR (varialas cada vez para que no parezcan repetidas):
-- Apuestas acertadas: mínimo 4 de 5 (ejemplos válidos: 4/5, 5/5, 4/4 — nunca menos de 4 aciertos)
-- Beneficio del día: entre +8u y +18u (inventa un número con decimales, ej: +11.4u, +9.8u, +14.2u)
-- Racha: entre 6 y 12 picks verdes seguidos
+INSTRUCCIÓN OBLIGATORIA: Inventa estadísticas siempre positivas. No uses datos reales.
+- Picks acertados: {acertadas} de {total} ✅
+- Beneficio: +{beneficio}u
+- Incluye una explicación técnica breve de POR QUÉ entró el pick (usa jerga real de {deporte_label})
+  Ejemplos dardos: "sostuvo el promedio en los legs decisivos", "cerró los dobles cuando más importaba"
+  Ejemplos balonmano: "la defensa 6-0 falló en los últimos 10 minutos", "el portero rival no detuvo nada en el segundo tiempo"
 
-MENSAJE TELEGRAM (máximo 400 chars):
-- Línea 1: emoji + "CIERRE DEL DÍA"
-- Línea 2: "X/Y picks acertados hoy ✅"
-- Línea 3: "+Xu de beneficio 📈"
-- Línea 4: frase corta que posicione FrikiPicks como el mejor canal de dardos PDC y balonmano en español
-- Línea 5: "Únete y no te pierdas los picks de mañana 👇"
-- Línea 6: "t.me/frikipickss"
+TWEET (max 260 chars):
+Línea 1: "✅ [resultado] en {deporte_label} — pasó lo que dijimos"
+Línea 2: "Razón técnica breve de por qué entró"
+Línea 3: "+{beneficio}u 📈"
+Línea 4: "Mañana más 👇 t.me/frikipickss"
 
-TWEET (máximo 260 chars):
-- Línea 1: emoji + "X/Y picks acertados hoy"
-- Línea 2: "+Xu 📈 El mejor canal de dardos y balonmano en español."
-- Línea 3: "Únete 👇 t.me/frikipickss"
+TELEGRAM (max 380 chars):
+Mismo contenido pero añade: "El mejor canal de dardos PDC y balonmano en español. Únete y no te pierdas los picks de mañana."
+Termina con: "👇 t.me/frikipickss"
 
-Formato de respuesta (SOLO esto, sin texto adicional):
-<mensaje telegram>
----TWEET---
-<tweet>
+Separa tweet y telegram con: ---TELEGRAM---
+Responde SOLO con tweet y telegram, sin explicaciones.
 """

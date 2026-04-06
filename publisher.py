@@ -22,7 +22,6 @@ from config import (
     X_ACCESS_SECRET,
     STAKE_UNITS,
 )
-from prompts import TWEETS_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -159,49 +158,13 @@ def publish_telegram_text(text: str) -> bool:
 # X (Twitter)
 # ---------------------------------------------------------------------------
 
-def generate_x_tweets(
-    player1: str,
-    player2: str,
-    sport: str,
-    analysis: dict,
-    odd: float,
-    tournament: str = "",
-) -> list[str]:
-    """Genera 4 tweets con Gemini. Devuelve lista vacía si falla."""
-    try:
-        sport_name = "Dardos PDC" if sport == "darts" else "Balonmano"
-        emoji = SPORT_EMOJI.get(sport, "⚽")
-        tournament_label = tournament if tournament else sport_name
 
-        recommended = analysis.get("recommended_player", player1)
-
-        prompt = TWEETS_PROMPT.format(
-            sport=sport,
-            tournament=tournament_label,
-            player1=player1,
-            player2=player2,
-            recommended_player=recommended,
-            odd=odd,
-            razon=analysis.get("razon", "Sin razon"),
-        )
-
-        logger.info("Generando tweet para %s vs %s...", player1, player2)
-        response = _gemini_client.models.generate_content(model=MODEL, contents=prompt)
-
-        tweet = response.text.strip()
-        if len(tweet) > 280:
-            tweet = tweet[:277] + "..."
-
-        logger.info("Tweet generado: %s...", tweet[:60])
-        return [tweet] if tweet else []
-
-    except Exception as e:
-        logger.error("Error generando tweets: %s", e)
-    return []
-
-
-def publish_single_tweet(text: str, image_path: str = None) -> bool:
-    """Publica un tweet. Si image_path está presente adjunta la imagen. Devuelve True si OK."""
+def publish_single_tweet(text: str, image_path: str = None, reply_to_id: str = None) -> str | None:
+    """
+    Publica un tweet. Devuelve el tweet_id si OK, None si falla.
+    image_path: adjunta imagen (solo al primer tweet de un hilo).
+    reply_to_id: si se indica, publica como respuesta a ese tweet_id.
+    """
     try:
         media_ids = None
         if image_path:
@@ -212,14 +175,64 @@ def publish_single_tweet(text: str, image_path: str = None) -> bool:
             except Exception as e:
                 logger.warning("No se pudo subir imagen, publicando sin ella: %s", e)
 
-        _get_x_client().create_tweet(text=text[:280], media_ids=media_ids)
-        logger.info("Tweet publicado: %s...", text[:60])
-        return True
+        kwargs = {"text": text[:280]}
+        if media_ids:
+            kwargs["media_ids"] = media_ids
+        if reply_to_id:
+            kwargs["in_reply_to_tweet_id"] = reply_to_id
+
+        response = _get_x_client().create_tweet(**kwargs)
+        tweet_id = response.data["id"]
+        logger.info("Tweet publicado (id=%s): %s...", tweet_id, text[:60])
+        return str(tweet_id)
     except tweepy.TweepyException as e:
         logger.error("Error Tweepy: %s", e)
     except Exception as e:
         logger.error("Error publicando tweet: %s", e)
-    return False
+    return None
+
+
+def publish_thread(tweets: list[str], image_path: str = None, x_counter_callback=None) -> int:
+    """
+    Publica una lista de tweets como hilo en X (cada uno responde al anterior).
+    5 minutos de delay entre tweets del hilo.
+    Corre en background (daemon=False). Devuelve inmediatamente el nº de tweets encolados.
+    """
+    if not tweets:
+        return 0
+
+    if TESTING_MODE:
+        tweet_id = publish_single_tweet(tweets[0], image_path=image_path)
+        if tweet_id and x_counter_callback:
+            x_counter_callback(1)
+        return 1 if tweet_id else 0
+
+    def _worker(tweet_list, img):
+        prev_id = None
+        published = 0
+        for i, text in enumerate(tweet_list):
+            if i > 0:
+                logger.info("Hilo tweet %d/%d: esperando 5 min...", i + 1, len(tweet_list))
+                time.sleep(300)
+            tweet_id = publish_single_tweet(
+                text,
+                image_path=img if i == 0 else None,
+                reply_to_id=prev_id,
+            )
+            if tweet_id:
+                prev_id = tweet_id
+                published += 1
+                if x_counter_callback:
+                    x_counter_callback(1)
+            else:
+                logger.warning("Hilo interrumpido en tweet %d/%d", i + 1, len(tweet_list))
+                break
+        logger.info("Hilo terminado: %d/%d publicados", published, len(tweet_list))
+
+    t = threading.Thread(target=_worker, args=(tweets, image_path), daemon=False)
+    t.start()
+    logger.info("%d tweets de hilo encolados (5 min entre cada uno)", len(tweets))
+    return len(tweets)
 
 
 def publish_x_tweets(tweets: list[str], x_counter_callback=None, image_path: str = None) -> int:
