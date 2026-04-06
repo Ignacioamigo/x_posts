@@ -97,12 +97,8 @@ def publish_telegram(
         emoji = SPORT_EMOJI.get(sport, "⚽")
         sport_name = "Dardos PDC" if sport == "darts" else "Balonmano"
 
-        if analysis["prob_player1"] >= analysis["prob_player2"]:
-            recommended = player1
-            llm_prob = analysis["prob_player1"]
-        else:
-            recommended = player2
-            llm_prob = analysis["prob_player2"]
+        recommended = analysis.get("recommended_player", player1)
+        llm_prob = analysis["prob_player1"] if recommended == player1 else analysis["prob_player2"]
 
         confianza_emoji = {"alta": "🟢", "media": "🟡", "baja": "🔴"}.get(
             analysis["confianza"], "⚪"
@@ -177,10 +173,7 @@ def generate_x_tweets(
         emoji = SPORT_EMOJI.get(sport, "⚽")
         tournament_label = tournament if tournament else sport_name
 
-        if analysis["prob_player1"] >= analysis["prob_player2"]:
-            recommended = player1
-        else:
-            recommended = player2
+        recommended = analysis.get("recommended_player", player1)
 
         prompt = TWEETS_PROMPT.format(
             sport=sport,
