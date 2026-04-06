@@ -280,27 +280,26 @@ def run_pipeline(sport: str = None, session: str = ""):
                 )
                 player1, player2 = player2, player1
 
-            # TESTING_MODE: forzar candidato aunque no haya EV
-            if TESTING_MODE and best_value is None:
+            # Sin EV detectado: forzar el jugador con mayor probabilidad estimada
+            if best_value is None:
                 if analysis["prob_player1"] >= analysis["prob_player2"]:
-                    best_value = value_p1; best_odd = b365_p1
+                    best_value = value_p1
+                    best_odd   = b365_p1
                     best_analysis["recommended_player"] = player1
                 else:
-                    best_value = value_p2; best_odd = b365_p2
+                    best_value = value_p2
+                    best_odd   = b365_p2
                     best_analysis["recommended_player"] = player2
                     best_analysis["prob_player1"], best_analysis["prob_player2"] = (
                         analysis["prob_player2"], analysis["prob_player1"]
                     )
                     player1, player2 = player2, player1
-                logger.info("TESTING_MODE: forzando candidato %s @%.2f", player1, best_odd)
+                logger.info("Sin EV positivo, forzando mejor prob: %s @%.2f", player1, best_odd)
 
-            if best_value and is_publishable_pick(best_analysis, best_value):
-                ev = best_value["ev_percentage"]
-                candidatos.append((ev, player1, player2, sport_m, tournament, best_analysis, best_value, best_odd))
-                logger.info("Candidato aceptado: %s @%.2f | EV=%.2f%% | %s",
-                            player1, best_odd, ev, best_analysis["confianza"])
-            else:
-                logger.info("❌ Descartado (sin value): %s vs %s", player1, player2)
+            ev = best_value["ev_percentage"]
+            candidatos.append((ev, player1, player2, sport_m, tournament, best_analysis, best_value, best_odd))
+            logger.info("Candidato: %s @%.2f | EV=%.2f%% | %s",
+                        player1, best_odd, ev, best_analysis["confianza"])
 
         except Exception as e:
             logger.error("Error procesando %s vs %s: %s", player1, player2, e)
