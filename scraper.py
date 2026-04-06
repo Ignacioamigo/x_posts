@@ -54,38 +54,30 @@ def get_todays_matches() -> list[dict]:
 
     logger.info("=== Obteniendo partidos (%s %s %s) con Gemini Search ===", dia_semana, today, current_time)
 
-    # Contexto del torneo según día de la semana
-    if weekday == 3:  # Jueves
-        contexto_torneo = (
-            f"Busca partidos de PDC Premier League Dardos y tenis de mesa profesional. "
-            f"El PDC PREMIER LEAGUE es PRIORITARIO hoy (jueves)."
-        )
-    elif weekday in (4, 5):  # Viernes, Sábado
-        contexto_torneo = (
-            f"Busca partidos de dardos PDC (World Series, Players Championship o torneos menores) "
-            f"y Bundesliga alemana de tenis de mesa."
-        )
-    elif weekday == 6:  # Domingo
-        contexto_torneo = (
-            f"Busca partidos de Bundesliga alemana de tenis de mesa y "
-            f"cualquier torneo de dardos PDC disponible."
-        )
-    else:  # Lunes-Miércoles
-        contexto_torneo = (
-            f"Busca partidos de tenis de mesa profesional "
-            f"(ligas rusa, alemana, europea) y dardos PDC Players Championship."
-        )
+    darts_context = "PRIORITARIO hoy (jueves): PDC Premier League. " if weekday == 3 else ""
 
     prompt = (
-        f"{contexto_torneo}\n\n"
-        f"Busca partidos que se van a jugar HOY {today} ({dia_semana}) "
+        f"Busca partidos que se jueguen HOY {today} ({dia_semana}) "
         f"a partir de las {current_time} hora española.\n\n"
+        f"LIGAS DE TENIS DE MESA (solo estas, que están en Bet365):\n"
+        f"- Setka Cup (la más importante, muchos partidos diarios)\n"
+        f"- Setka Cup Women\n"
+        f"- Challenger Series TT\n"
+        f"- TT Cup\n"
+        f"- TT Elite Series\n"
+        f"- Czech Liga Pro\n\n"
+        f"LIGAS DE DARDOS (solo estas):\n"
+        f"- PDC Premier League (solo jueves)\n"
+        f"- PDC Players Championship\n"
+        f"- PDC European Tour\n"
+        f"- PDC World Series\n"
+        f"{darts_context}\n"
+        f"NO busques otras ligas. Solo las listadas.\n\n"
         f"REGLAS ESTRICTAS:\n"
         f"- Solo partidos que AUN NO HAN EMPEZADO\n"
         f"- La hora de inicio debe ser posterior a {current_time}\n"
         f"- Si no estás seguro de si un partido ya se jugó, NO lo incluyas\n"
-        f"- NO incluyas partidos de madrugada que ya terminaron\n"
-        f"- NO incluyas resultados de partidos ya disputados\n\n"
+        f"- NO incluyas partidos de madrugada que ya terminaron\n\n"
         f"Responde SOLO con JSON válido, sin texto adicional ni markdown:\n"
         f'[{{"player1":"nombre","player2":"nombre",'
         f'"sport":"darts o table-tennis","time":"HH:MM","tournament":"nombre"}}]\n\n'
