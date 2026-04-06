@@ -35,7 +35,8 @@ TESTING_MODE = os.getenv("TESTING_MODE", "false").lower() == "true"
 _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 _telegram_bot = None
-_x_client = None
+_x_client     = None
+_x_api_v1     = None
 
 MODEL = "gemini-3-flash-preview"
 
@@ -65,6 +66,18 @@ def _get_x_client() -> tweepy.Client:
             access_token_secret=X_ACCESS_SECRET,
         )
     return _x_client
+
+
+def _get_x_api_v1() -> tweepy.API:
+    """API v1.1 — necesaria solo para media_upload."""
+    global _x_api_v1
+    if _x_api_v1 is None:
+        auth = tweepy.OAuth1UserHandler(
+            X_API_KEY, X_API_SECRET,
+            X_ACCESS_TOKEN, X_ACCESS_SECRET,
+        )
+        _x_api_v1 = tweepy.API(auth)
+    return _x_api_v1
 
 
 # ---------------------------------------------------------------------------
@@ -199,10 +212,19 @@ def generate_x_tweets(
     return []
 
 
-def publish_single_tweet(text: str) -> bool:
-    """Publica un tweet suelto (para preview y resumen). Devuelve True si OK."""
+def publish_single_tweet(text: str, image_path: str = None) -> bool:
+    """Publica un tweet. Si image_path está presente adjunta la imagen. Devuelve True si OK."""
     try:
-        _get_x_client().create_tweet(text=text[:280])
+        media_ids = None
+        if image_path:
+            try:
+                media = _get_x_api_v1().media_upload(filename=image_path)
+                media_ids = [media.media_id]
+                logger.info("Imagen subida a X: media_id=%s", media.media_id)
+            except Exception as e:
+                logger.warning("No se pudo subir imagen, publicando sin ella: %s", e)
+
+        _get_x_client().create_tweet(text=text[:280], media_ids=media_ids)
         logger.info("Tweet publicado: %s...", text[:60])
         return True
     except tweepy.TweepyException as e:
@@ -212,9 +234,10 @@ def publish_single_tweet(text: str) -> bool:
     return False
 
 
-def publish_x_tweets(tweets: list[str], x_counter_callback=None) -> int:
+def publish_x_tweets(tweets: list[str], x_counter_callback=None, image_path: str = None) -> int:
     """
     Publica tweets en X en un hilo de fondo con 90 min de delay entre ellos.
+    image_path: si se proporciona, adjunta la imagen solo al primer tweet.
     x_counter_callback: función a llamar por cada tweet publicado (para el contador diario).
     En TESTING_MODE: solo publica el primero, sin delay, en el hilo principal.
     Devuelve inmediatamente el número de tweets encolados.
@@ -224,27 +247,26 @@ def publish_x_tweets(tweets: list[str], x_counter_callback=None) -> int:
         return 0
 
     if TESTING_MODE:
-        # En test: 1 tweet, sin hilo, sin delay
-        ok = publish_single_tweet(tweets[0])
+        ok = publish_single_tweet(tweets[0], image_path=image_path)
         if ok and x_counter_callback:
             x_counter_callback(1)
         return 1 if ok else 0
 
     # Producción: hilo de fondo, 4 tweets con 90 min de delay
-    def _worker(tweet_list):
+    def _worker(tweet_list, img):
         published = 0
         for i, tweet in enumerate(tweet_list):
             if i > 0:
                 logger.info("Tweet %d/%d: esperando 90 min...", i + 1, len(tweet_list))
                 time.sleep(TWEET_DELAY_SECONDS)
-            ok = publish_single_tweet(tweet)
+            ok = publish_single_tweet(tweet, image_path=img if i == 0 else None)
             if ok:
                 published += 1
                 if x_counter_callback:
                     x_counter_callback(1)
         logger.info("Hilo tweets terminado: %d/%d publicados", published, len(tweet_list))
 
-    t = threading.Thread(target=_worker, args=(tweets,), daemon=True)
+    t = threading.Thread(target=_worker, args=(tweets, image_path), daemon=True)
     t.start()
     logger.info("%d tweets encolados en hilo de fondo (90 min entre cada uno)", len(tweets))
     return len(tweets)

@@ -22,6 +22,7 @@ from publisher import (
     publish_telegram, publish_telegram_text,
     generate_x_tweets, publish_x_tweets, publish_single_tweet,
 )
+from image_generator import generate_bet365_card
 from google import genai
 from google.genai import types
 from config import GEMINI_API_KEY
@@ -285,9 +286,20 @@ def run_pipeline(sport: str = None, session: str = ""):
             tournament=tournament,
         )
         if tweets:
+            image_path = None
+            try:
+                image_path = generate_bet365_card(
+                    player=best_analysis.get("recommended_player", player1),
+                    opponent=player2,
+                    odd=best_odd,
+                    tournament=tournament,
+                )
+            except Exception as e:
+                logger.warning("No se pudo generar imagen del pick: %s", e)
+
             cupos = _X_LIMITE - _x_posts_hoy
             tweets = tweets[:cupos]
-            publish_x_tweets(tweets, x_counter_callback=_mark_x)
+            publish_x_tweets(tweets, x_counter_callback=_mark_x, image_path=image_path)
 
     logger.info("Pipeline %s finalizado | Pick publicado: %s vs %s", label, player1, player2)
 
