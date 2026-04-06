@@ -15,13 +15,15 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 logger = logging.getLogger(__name__)
 
-URLS = {
-    "darts":         "https://www.oddsportal.com/darts/",
-    "table-tennis":  "https://www.oddsportal.com/table-tennis/",
-}
+URLS_DARTS = [
+    "https://www.oddsportal.com/darts/world/premier-league/",
+    "https://www.oddsportal.com/darts/world/modus-super-series/",
+    "https://www.oddsportal.com/darts/europe/european-tour-4/",
+]
 
-# URL de prueba
-URL_TEST = "https://www.oddsportal.com/darts/europe/european-tour-4/"
+URLS_TABLE_TENNIS = [
+    "https://www.oddsportal.com/table-tennis/",
+]
 
 
 def _build_driver() -> webdriver.Chrome:
@@ -236,18 +238,31 @@ def _parse_row(row, sport: str, today: date, now: datetime, tournament: str) -> 
     }
 
 
-def scrape_darts_european_tour() -> list[dict]:
-    """Función de prueba — solo European Tour 4."""
-    return scrape_oddsportal(URL_TEST, "darts")
+def scrape_all_darts() -> list[dict]:
+    """Scrape todas las URLs de dardos y devuelve lista unificada sin duplicados."""
+    seen = set()
+    all_matches = []
+    for url in URLS_DARTS:
+        for m in scrape_oddsportal(url, "darts"):
+            key = (m["player1"].lower(), m["player2"].lower())
+            if key not in seen:
+                seen.add(key)
+                all_matches.append(m)
+    return all_matches
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-    results = scrape_darts_european_tour()
-    if results:
-        print(f"\n✅ {len(results)} partidos encontrados:\n")
-        for m in results:
-            odd_str = f"  Bet365: {m['odd_p1']} / {m['odd_p2']}" if m['odd_p1'] else "  Sin cuotas Bet365"
-            print(f"  {m['time']} | {m['player1']} vs {m['player2']} | {m['tournament']}{odd_str}")
-    else:
-        print("\n❌ Sin partidos encontrados")
+
+    for url in URLS_DARTS:
+        print(f"\n{'='*60}")
+        print(f"URL: {url}")
+        print('='*60)
+        results = scrape_oddsportal(url, "darts")
+        if results:
+            print(f"✅ {len(results)} partidos encontrados:\n")
+            for m in results:
+                odd_str = f"Bet365: {m['odd_p1']} / {m['odd_p2']}" if m['odd_p1'] else "Sin cuotas Bet365"
+                print(f"  {m['time']} | {m['player1']} vs {m['player2']} | {m['tournament']} | {odd_str}")
+        else:
+            print("❌ Sin partidos encontrados")
