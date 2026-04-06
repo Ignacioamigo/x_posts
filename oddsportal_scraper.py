@@ -249,13 +249,14 @@ def _parse_row(row, sport: str, today: date, now: datetime, tournament: str) -> 
         pass
 
     # ── Filtrar solo partidos futuros de hoy ─────────────────────────────────
-    if hora:
-        try:
-            match_dt = datetime.strptime(f"{today} {hora}", "%Y-%m-%d %H:%M")
-            if match_dt <= now:
-                return None  # ya empezó
-        except ValueError:
-            pass  # hora inválida → incluir por precaución
+    if not hora or hora == "?":
+        return None  # sin hora confirmada → descartar (puede ser partido ya jugado)
+    try:
+        match_dt = datetime.strptime(f"{today} {hora}", "%Y-%m-%d %H:%M")
+        if match_dt <= now:
+            return None  # ya empezó
+    except ValueError:
+        return None  # hora no parseable → descartar
 
     return {
         "player1":    player1,

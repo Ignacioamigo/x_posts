@@ -165,7 +165,8 @@ def _get_matches_with_odds(sport: str, now: datetime) -> list[dict]:
                 if dt > now:
                     result.append(m)
             except ValueError:
-                result.append(m)  # hora desconocida → incluir
+                # Hora desconocida ("?") → descartar: no podemos verificar si ya se jugó
+                logger.debug("Partido sin hora descartado: %s vs %s", m["player1"], m["player2"])
         return result
 
     try:
