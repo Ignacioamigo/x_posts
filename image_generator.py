@@ -26,19 +26,21 @@ TOP_H  = 128   # altura sección blanca
 
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    candidates_bold = [
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    ]
-    candidates_regular = [
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    ]
-    for path in (candidates_bold if bold else candidates_regular):
+    """
+    Helvetica Neue index 1 = Bold, index 0 = Regular.
+    Coincide con la tipografía del diseño Bet365 en iOS.
+    """
+    hv = "/System/Library/Fonts/HelveticaNeue.ttc"
+    try:
+        return ImageFont.truetype(hv, size, index=1 if bold else 0)
+    except (IOError, OSError):
+        pass
+    # Fallback Linux / otros sistemas
+    fallback_bold    = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
+    fallback_regular = ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+    for path in (fallback_bold if bold else fallback_regular):
         try:
             return ImageFont.truetype(path, size)
         except (IOError, OSError):
@@ -95,7 +97,7 @@ def generate_bet365_card(
     # ── Bottom izquierda (negro oscuro) ──────────────────────────────────────
     draw.rectangle([0, TOP_H, W // 2 - 1, H], fill=DARK_BG)
     font_btn  = _load_font(22, bold=True)
-    btn_label = "Ver pick"
+    btn_label = "Set Stake"
     bbox_btn  = draw.textbbox((0, 0), btn_label, font=font_btn)
     btn_w = bbox_btn[2] - bbox_btn[0]
     btn_h = bbox_btn[3] - bbox_btn[1]
@@ -105,8 +107,8 @@ def generate_bet365_card(
 
     # ── Bottom derecha (gris) ─────────────────────────────────────────────────
     draw.rectangle([W // 2, TOP_H, W, H], fill=GRAY_BG)
-    font_url  = _load_font(16, bold=True)
-    url_label = "t.me/frikipickss"
+    font_url  = _load_font(22, bold=True)
+    url_label = "Place Bet"
     bbox_url  = draw.textbbox((0, 0), url_label, font=font_url)
     url_w = bbox_url[2] - bbox_url[0]
     url_h = bbox_url[3] - bbox_url[1]
