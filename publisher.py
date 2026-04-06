@@ -46,7 +46,7 @@ SPORT_EMOJI = {
 }
 
 # Delay entre tweets en producción (90 minutos)
-TWEET_DELAY_SECONDS = 0 if TESTING_MODE else 5400
+TWEET_DELAY_SECONDS = 0 if TESTING_MODE else 180
 
 
 def _get_telegram_bot() -> telebot.TeleBot:
