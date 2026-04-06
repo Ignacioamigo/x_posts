@@ -54,37 +54,42 @@ def get_todays_matches() -> list[dict]:
 
     logger.info("=== Obteniendo partidos (%s %s %s) con Gemini Search ===", dia_semana, today, current_time)
 
-    # Prompt adaptado al día de la semana
+    # Contexto del torneo según día de la semana
     if weekday == 3:  # Jueves
-        contexto_dia = (
-            f"Busca partidos Premier League Dardos PDC esta noche "
-            f"y tenis de mesa profesional hoy {today}. "
+        contexto_torneo = (
+            f"Busca partidos de PDC Premier League Dardos y tenis de mesa profesional. "
             f"El PDC PREMIER LEAGUE es PRIORITARIO hoy (jueves)."
         )
     elif weekday in (4, 5):  # Viernes, Sábado
-        contexto_dia = (
-            f"Busca dardos PDC World Series, Players Championship o torneos menores "
-            f"y Bundesliga tenis de mesa hoy {today} ({dia_semana})."
+        contexto_torneo = (
+            f"Busca partidos de dardos PDC (World Series, Players Championship o torneos menores) "
+            f"y Bundesliga alemana de tenis de mesa."
         )
     elif weekday == 6:  # Domingo
-        contexto_dia = (
-            f"Busca Bundesliga alemana de tenis de mesa y "
-            f"cualquier torneo de dardos PDC disponible hoy {today} (domingo)."
+        contexto_torneo = (
+            f"Busca partidos de Bundesliga alemana de tenis de mesa y "
+            f"cualquier torneo de dardos PDC disponible."
         )
     else:  # Lunes-Miércoles
-        contexto_dia = (
+        contexto_torneo = (
             f"Busca partidos de tenis de mesa profesional "
-            f"(ligas rusa, alemana, europea) y dardos PDC Players Championship "
-            f"hoy {today} ({dia_semana})."
+            f"(ligas rusa, alemana, europea) y dardos PDC Players Championship."
         )
 
     prompt = (
-        f"{contexto_dia} "
-        f"Solo incluye partidos que AÚN NO HAN EMPEZADO (hora actual: {current_time}). "
-        f"Responde ÚNICAMENTE con JSON válido sin markdown:\n"
+        f"{contexto_torneo}\n\n"
+        f"Busca partidos que se van a jugar HOY {today} ({dia_semana}) "
+        f"a partir de las {current_time} hora española.\n\n"
+        f"REGLAS ESTRICTAS:\n"
+        f"- Solo partidos que AUN NO HAN EMPEZADO\n"
+        f"- La hora de inicio debe ser posterior a {current_time}\n"
+        f"- Si no estás seguro de si un partido ya se jugó, NO lo incluyas\n"
+        f"- NO incluyas partidos de madrugada que ya terminaron\n"
+        f"- NO incluyas resultados de partidos ya disputados\n\n"
+        f"Responde SOLO con JSON válido, sin texto adicional ni markdown:\n"
         f'[{{"player1":"nombre","player2":"nombre",'
-        f'"sport":"darts o table-tennis","time":"HH:MM","tournament":"nombre"}}]'
-        f"\nSi no hay partidos pendientes devuelve exactamente: []"
+        f'"sport":"darts o table-tennis","time":"HH:MM","tournament":"nombre"}}]\n\n'
+        f"Si no hay partidos futuros, responde: []"
     )
 
     # Reintentar hasta 3 veces si el JSON está malformado
