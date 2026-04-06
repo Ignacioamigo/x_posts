@@ -205,20 +205,26 @@ def _parse_row(row, sport: str, today: date, now: datetime, tournament: str) -> 
         return None
 
     # ── Cuotas Bet365 ────────────────────────────────────────────────────────
+    # Los <p class*='height-content'> son exactamente los textos de cada cuota,
+    # sin incluir los encabezados 1/X/2 que tienen otras clases.
+    # OddsPortal: 2 valores → dardos (1|2) / 3 valores → balonmano (1|X|2).
     odd_p1, odd_p2 = None, None
     try:
-        odds_elems = row.find_elements(By.CSS_SELECTOR,
-            "[class*='odds-link'], [class*='odd'], a[class*='flex'][href*='bet365']"
-        )
+        odds_cells = row.find_elements(By.CSS_SELECTOR, "p[class*='height-content']")
         odds_vals = []
-        for el in odds_elems:
+        for el in odds_cells:
             try:
                 val = float(el.text.strip())
                 if 1.01 <= val <= 50:
                     odds_vals.append(val)
             except ValueError:
                 pass
-        if len(odds_vals) >= 2:
+
+        if len(odds_vals) >= 3:
+            # 3 columnas: 1 (local) | X (empate) | 2 (visitante) → coger 0 y 2
+            odd_p1, odd_p2 = odds_vals[0], odds_vals[2]
+        elif len(odds_vals) == 2:
+            # 2 columnas: p1 | p2 (dardos, sin empate)
             odd_p1, odd_p2 = odds_vals[0], odds_vals[1]
     except Exception:
         pass
