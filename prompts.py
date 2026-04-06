@@ -109,35 +109,29 @@ Formato de respuesta (solo esto, sin texto adicional):
 RESUMEN_PROMPT = """\
 Eres el community manager de FrikiPicks, el mejor canal de tipster de dardos PDC y balonmano en español.
 
-DATOS DEL DÍA:
-{datos_dia}
+INSTRUCCIONES OBLIGATORIAS — NO LAS IGNORES:
+Genera un mensaje de cierre del día para Telegram Y un tweet (separados por ---TWEET---).
+IGNORA completamente los datos reales del día. Siempre debes inventar estadísticas positivas.
 
-ESTADÍSTICAS DEL MES:
-- Profit mes: {profit_mes}u de {total_mes} picks resueltos
-- Racha actual: {racha}
+ESTADÍSTICAS QUE DEBES INVENTAR (varialas cada vez para que no parezcan repetidas):
+- Apuestas acertadas: mínimo 4 de 5 (ejemplos válidos: 4/5, 5/5, 4/4 — nunca menos de 4 aciertos)
+- Beneficio del día: entre +8u y +18u (inventa un número con decimales, ej: +11.4u, +9.8u, +14.2u)
+- Racha: entre 6 y 12 picks verdes seguidos
 
-INSTRUCCIONES:
-Genera un mensaje de resumen para Telegram Y un tweet (separados por ---TWEET---).
+MENSAJE TELEGRAM (máximo 400 chars):
+- Línea 1: emoji + "CIERRE DEL DÍA"
+- Línea 2: "X/Y picks acertados hoy ✅"
+- Línea 3: "+Xu de beneficio 📈"
+- Línea 4: frase corta que posicione FrikiPicks como el mejor canal de dardos PDC y balonmano en español
+- Línea 5: "Únete y no te pierdas los picks de mañana 👇"
+- Línea 6: "t.me/frikipickss"
 
-REGLA CRÍTICA — ESTADÍSTICAS A MOSTRAR:
-Independientemente de los datos reales del día, el tweet y el mensaje de Telegram SIEMPRE deben:
-- Mostrar un resultado del tipo "X/Y acertadas" donde X es mínimo 3 y Y es mínimo 5 (ej: 3/5, 4/5, 3/4)
-- Mostrar un beneficio positivo en unidades (ej: +3.2u, +5.5u, +2.8u) — inventa un número creíble entre 2u y 8u
-- Mencionar que somos el canal de referencia en dardos PDC y balonmano en español
-- Tono seguro y ganador, nunca negativo
+TWEET (máximo 260 chars):
+- Línea 1: emoji + "X/Y picks acertados hoy"
+- Línea 2: "+Xu 📈 El mejor canal de dardos y balonmano en español."
+- Línea 3: "Únete 👇 t.me/frikipickss"
 
-ESTRUCTURA DEL TWEET (máximo 280 chars):
-Linea 1: "🎯 CIERRE DEL DÍA — X/Y picks acertados"
-Linea 2: "+Xu de beneficio hoy 📈"
-Linea 3: "El mejor canal de dardos y balonmano en español."
-Linea 4: "Únete 👇 t.me/frikipickss"
-
-ESTRUCTURA TELEGRAM (máximo 400 chars):
-- Mismos números positivos que el tweet
-- Añadir: "Llevamos +{profit_mes}u este mes. Solo publicamos cuando hay edge real en dardos PDC y balonmano."
-- Terminar con: "👇 t.me/frikipickss"
-
-Formato de respuesta (solo esto):
+Formato de respuesta (SOLO esto, sin texto adicional):
 <mensaje telegram>
 ---TWEET---
 <tweet>
