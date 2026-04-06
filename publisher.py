@@ -261,7 +261,7 @@ def publish_x_tweets(tweets: list[str], x_counter_callback=None, image_path: str
                     x_counter_callback(1)
         logger.info("Hilo tweets terminado: %d/%d publicados", published, len(tweet_list))
 
-    t = threading.Thread(target=_worker, args=(tweets, image_path), daemon=True)
+    t = threading.Thread(target=_worker, args=(tweets, image_path), daemon=False)
     t.start()
-    logger.info("%d tweets encolados en hilo de fondo (90 min entre cada uno)", len(tweets))
+    logger.info("%d tweets encolados en hilo de fondo (3 min entre cada uno)", len(tweets))
     return len(tweets)
