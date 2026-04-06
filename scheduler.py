@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _x_posts_hoy = 0
-_X_LIMITE = 7
+_X_LIMITE = 10
 _gemini = genai.Client(api_key=GEMINI_API_KEY)
 _GEMINI_MODEL = "gemini-3-flash-preview"
 _SEARCH_CONFIG = types.GenerateContentConfig(
@@ -169,21 +169,21 @@ def run_pipeline(sport: str = None, session: str = ""):
         return
 
     logger.info("Partidos a procesar: %d", len(matches))
-    picks_publicados = 0
+
+    # ── Fase 1: analizar todos los partidos y recoger candidatos ────────────
+    candidatos = []  # lista de (ev, player1, player2, sport_m, best_analysis, best_value, best_odd)
 
     for i, match in enumerate(matches, 1):
-        player1   = match["player1"]
-        player2   = match["player2"]
-        sport_m   = match["sport"]
-        hora      = match.get("time", "?")
+        player1 = match["player1"]
+        player2 = match["player2"]
+        sport_m = match["sport"]
+        hora    = match.get("time", "?")
 
         logger.info("[%d/%d] %s vs %s (%s) %s", i, len(matches), player1, player2, sport_m, hora)
 
         try:
-            # Estadísticas
             match_context = get_match_context(player1, player2, sport_m)
 
-            # Cuotas
             odds_data = get_odds_from_oddsportal(player1, player2)
             b365_p1 = odds_data.get("bet365", {}).get("player1")
             b365_p2 = odds_data.get("bet365", {}).get("player2")
@@ -192,13 +192,11 @@ def run_pipeline(sport: str = None, session: str = ""):
                 logger.warning("Sin cuotas Bet365 para %s vs %s, saltando", player1, player2)
                 continue
 
-            # Análisis con Gemini
             analysis = analyze_match(match_context, odds_data)
             if not analysis:
                 logger.warning("Análisis fallido para %s vs %s", player1, player2)
                 continue
 
-            # Value check
             value_p1 = detect_value(analysis["prob_player1"], b365_p1, VALUE_THRESHOLD)
             value_p2 = detect_value(analysis["prob_player2"], b365_p2, VALUE_THRESHOLD)
 
@@ -222,7 +220,7 @@ def run_pipeline(sport: str = None, session: str = ""):
                 )
                 player1, player2 = player2, player1
 
-            # TESTING_MODE: forzar publicación
+            # TESTING_MODE: forzar candidato aunque no haya EV
             if TESTING_MODE and best_value is None:
                 if analysis["prob_player1"] >= analysis["prob_player2"]:
                     best_value = value_p1; best_odd = b365_p1
@@ -234,48 +232,62 @@ def run_pipeline(sport: str = None, session: str = ""):
                         analysis["prob_player2"], analysis["prob_player1"]
                     )
                     player1, player2 = player2, player1
-                logger.info("TESTING_MODE: forzando %s @%.2f", player1, best_odd)
+                logger.info("TESTING_MODE: forzando candidato %s @%.2f", player1, best_odd)
 
-            # Publicar si pasa el filtro
             if best_value and is_publishable_pick(best_analysis, best_value):
-                logger.info("✅ PICK: %s @%.2f | EV=%.2f%% | %s",
-                            player1, best_odd, best_value["ev_percentage"], best_analysis["confianza"])
-
-                telegram_ok = publish_telegram(
-                    player1=player1, player2=player2, sport=sport_m,
-                    analysis=best_analysis, value_data=best_value, bet365_odd=best_odd,
-                )
-
-                # Guardar en historial
-                pick_id = None
-                if telegram_ok:
-                    pick_id = save_pick(
-                        sport=sport_m, player1=player1, player2=player2,
-                        pick_jugador=best_analysis.get("recommended_player", player1),
-                        cuota=best_odd, ev_porcentaje=best_value["ev_percentage"],
-                        confianza=best_analysis["confianza"],
-                        publicado_telegram=True, publicado_x=False,
-                    )
-                    picks_publicados += 1
-
-                # Tweets en background si quedan cupos en X
-                if can_post_x():
-                    tweets = generate_x_tweets(
-                        player1=player1, player2=player2, sport=sport_m,
-                        analysis=best_analysis, odd=best_odd,
-                    )
-                    if tweets:
-                        # Filtrar por cupos restantes
-                        cupos = _X_LIMITE - _x_posts_hoy
-                        tweets = tweets[:cupos]
-                        publish_x_tweets(tweets, x_counter_callback=_mark_x)
+                ev = best_value["ev_percentage"]
+                candidatos.append((ev, player1, player2, sport_m, best_analysis, best_value, best_odd))
+                logger.info("Candidato aceptado: %s @%.2f | EV=%.2f%% | %s",
+                            player1, best_odd, ev, best_analysis["confianza"])
             else:
-                logger.info("❌ Descartado: %s vs %s", player1, player2)
+                logger.info("❌ Descartado (sin value): %s vs %s", player1, player2)
 
         except Exception as e:
             logger.error("Error procesando %s vs %s: %s", player1, player2, e)
 
-    logger.info("Pipeline %s finalizado | Picks: %d", label, picks_publicados)
+    # ── Fase 2: publicar solo el mejor candidato (mayor EV) ─────────────────
+    if not candidatos:
+        logger.info("Pipeline %s finalizado | Sin picks publicables", label)
+        return
+
+    candidatos.sort(key=lambda x: x[0], reverse=True)
+
+    # Loguear los descartados por límite de slot
+    for ev, p1, p2, *_ in candidatos[1:]:
+        logger.info(
+            "Descartado por límite de slot (mejor EV ya publicado): %s vs %s | EV=%.2f%%",
+            p1, p2, ev,
+        )
+
+    ev, player1, player2, sport_m, best_analysis, best_value, best_odd = candidatos[0]
+    logger.info("✅ PICK (mejor del slot): %s @%.2f | EV=%.2f%% | %s",
+                player1, best_odd, ev, best_analysis["confianza"])
+
+    telegram_ok = publish_telegram(
+        player1=player1, player2=player2, sport=sport_m,
+        analysis=best_analysis, value_data=best_value, bet365_odd=best_odd,
+    )
+
+    if telegram_ok:
+        save_pick(
+            sport=sport_m, player1=player1, player2=player2,
+            pick_jugador=best_analysis.get("recommended_player", player1),
+            cuota=best_odd, ev_porcentaje=best_value["ev_percentage"],
+            confianza=best_analysis["confianza"],
+            publicado_telegram=True, publicado_x=False,
+        )
+
+    if can_post_x():
+        tweets = generate_x_tweets(
+            player1=player1, player2=player2, sport=sport_m,
+            analysis=best_analysis, odd=best_odd,
+        )
+        if tweets:
+            cupos = _X_LIMITE - _x_posts_hoy
+            tweets = tweets[:cupos]
+            publish_x_tweets(tweets, x_counter_callback=_mark_x)
+
+    logger.info("Pipeline %s finalizado | Pick publicado: %s vs %s", label, player1, player2)
 
 
 # ---------------------------------------------------------------------------
