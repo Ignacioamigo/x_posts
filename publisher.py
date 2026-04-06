@@ -41,8 +41,8 @@ _x_api_v1     = None
 MODEL = "gemini-3-flash-preview"
 
 SPORT_EMOJI = {
-    "darts": "🎯",
-    "table-tennis": "🏓",
+    "darts":    "🎯",
+    "handball": "🤾",
 }
 
 # Delay entre tweets en producción (90 minutos)
@@ -95,7 +95,7 @@ def publish_telegram(
     """Publica el pick en el canal de Telegram. Devuelve True si OK."""
     try:
         emoji = SPORT_EMOJI.get(sport, "⚽")
-        sport_name = "Dardos PDC" if sport == "darts" else "Tenis de Mesa"
+        sport_name = "Dardos PDC" if sport == "darts" else "Balonmano"
 
         if analysis["prob_player1"] >= analysis["prob_player2"]:
             recommended = player1
@@ -173,7 +173,7 @@ def generate_x_tweets(
 ) -> list[str]:
     """Genera 4 tweets con Gemini. Devuelve lista vacía si falla."""
     try:
-        sport_name = "Dardos PDC" if sport == "darts" else "Tenis de Mesa"
+        sport_name = "Dardos PDC" if sport == "darts" else "Balonmano"
         emoji = SPORT_EMOJI.get(sport, "⚽")
         tournament_label = tournament if tournament else sport_name
 

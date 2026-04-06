@@ -34,7 +34,7 @@ _SEARCH_CONFIG = types.GenerateContentConfig(
 
 def get_todays_matches() -> list[dict]:
     """
-    Obtiene los partidos de dardos PDC y tenis de mesa profesional del día.
+    Obtiene los partidos de dardos PDC y balonmano profesional del día.
 
     Estrategia:
     - TESTING_MODE=true → devuelve partidos ficticios del circuito PDC/ITTF.
@@ -59,13 +59,13 @@ def get_todays_matches() -> list[dict]:
     prompt = (
         f"Busca partidos que se jueguen HOY {today} ({dia_semana}) "
         f"a partir de las {current_time} hora española.\n\n"
-        f"LIGAS DE TENIS DE MESA (solo estas, que están en Bet365):\n"
-        f"- Setka Cup (la más importante, muchos partidos diarios)\n"
-        f"- Setka Cup Women\n"
-        f"- Challenger Series TT\n"
-        f"- TT Cup\n"
-        f"- TT Elite Series\n"
-        f"- Czech Liga Pro\n\n"
+        f"LIGAS DE BALONMANO (solo estas, que están en Bet365):\n"
+        f"- Champions League (la más importante)\n"
+        f"- European League\n"
+        f"- Liga ASOBAL (España)\n"
+        f"- Bundesliga (Alemania)\n"
+        f"- Starligue (Francia)\n"
+        f"- REMA 1000-ligaen (Noruega)\n\n"
         f"LIGAS DE DARDOS (solo estas):\n"
         f"- PDC Premier League (solo jueves)\n"
         f"- PDC Players Championship\n"
@@ -80,7 +80,7 @@ def get_todays_matches() -> list[dict]:
         f"- NO incluyas partidos de madrugada que ya terminaron\n\n"
         f"Responde SOLO con JSON válido, sin texto adicional ni markdown:\n"
         f'[{{"player1":"nombre","player2":"nombre",'
-        f'"sport":"darts o table-tennis","time":"HH:MM","tournament":"nombre"}}]\n\n'
+        f'"sport":"darts o handball","time":"HH:MM","tournament":"nombre"}}]\n\n'
         f"Si no hay partidos futuros, responde: []"
     )
 
@@ -149,7 +149,7 @@ def _parse_matches_json(raw: str) -> list[dict] | None:
         player1 = item.get("player1", "").strip()
         player2 = item.get("player2", "").strip()
         sport = item.get("sport", "").strip().lower()
-        if not player1 or not player2 or sport not in ("darts", "table-tennis"):
+        if not player1 or not player2 or sport not in ("darts", "handball"):
             logger.warning("Partido inválido descartado: %s", item)
             continue
         if player1.lower() in _PLACEHOLDERS or player2.lower() in _PLACEHOLDERS:
@@ -203,11 +203,11 @@ def _get_test_matches() -> list[dict]:
             "tournament": "PDC Premier League",
         },
         {
-            "player1": "Fan Zhendong",
-            "player2": "Ma Long",
-            "sport": "table-tennis",
+            "player1": "Kiel THW",
+            "player2": "Barcelona",
+            "sport": "handball",
             "time": "14:00",
-            "tournament": "ITTF World Tour",
+            "tournament": "Champions League",
         },
     ]
 
@@ -224,7 +224,7 @@ def get_match_context(player1: str, player2: str, sport: str) -> str:
     Más robusto que cualquier scraping: busca en tiempo real.
     Devuelve string listo para incluir en el prompt de análisis.
     """
-    sport_name = "dardos PDC" if sport == "darts" else "tenis de mesa"
+    sport_name = "dardos PDC" if sport == "darts" else "balonmano"
 
     prompt = (
         f"Busca estadísticas recientes de {player1} y {player2} en {sport_name}. "

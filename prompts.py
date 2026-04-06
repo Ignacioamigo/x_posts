@@ -10,7 +10,7 @@ Prompts para Gemini API.
 # Prompt de análisis
 # ---------------------------------------------------------------------------
 ANALYSIS_PROMPT = """\
-Eres un analista deportivo experto en dardos PDC y tenis de mesa.
+Eres un analista deportivo experto en dardos PDC y balonmano.
 Tu única función es estimar probabilidades a partir de estadísticas. NO decides la apuesta.
 
 CONTEXTO DEL PARTIDO:
@@ -51,7 +51,7 @@ TWEETS_PROMPT = """\
 Genera UN tweet para este pick de apuestas deportivas.
 
 Partido: {player1} vs {player2}
-Deporte: {sport} (si es table-tennis escribe PING PONG, si es darts escribe DARDOS)
+Deporte: {sport} (si es handball escribe BALONMANO, si es darts escribe DARDOS)
 Torneo: {tournament}
 Pick ganador: {recommended_player}
 Cuota Bet365: {odd}
@@ -74,7 +74,7 @@ Responde SOLO con el tweet, sin explicaciones.
 # ---------------------------------------------------------------------------
 PREVIEW_PROMPT = """\
 Eres el community manager canalla de FrikiPicks, un canal de tipster de dardos PDC
-y tenis de mesa. Tu trabajo es generar expectación SIN revelar picks concretos.
+y balonmano. Tu trabajo es generar expectación SIN revelar picks concretos.
 
 DÍA: {dia_semana} {fecha}
 PARTIDOS DE HOY: {resumen_partidos}
@@ -95,9 +95,9 @@ Jueves con Premier League:
 Telegram: "🎯 JUEVES DE PREMIER LEAGUE\nEsta noche hay dardos en el O2 Arena.\nMVG, Littler, Wright en la pista.\nPicks antes de cada partido. ⏰"
 Tweet: "Jueves de Premier League. El O2 enciende los dardos esta noche 🎯 Picks a partir de las 19:00. t.me/frikipickss"
 
-Lunes de tenis de mesa:
-Telegram: "🏓 LUNES DE TENIS DE MESA\nLiga rusa activa toda la tarde.\nHay valor donde nadie mira.\nPicks a partir de las 11:00 ⏰"
-Tweet: "🏓 Liga rusa de TT arrancando. Hay valor donde el mercado no mira. Picks desde las 11:00. t.me/frikipickss"
+Lunes de balonmano:
+Telegram: "🤾 LUNES DE BALONMANO\nBundesliga activa toda la tarde.\nHay valor donde nadie mira.\nPicks a partir de las 11:00 ⏰"
+Tweet: "🤾 Bundesliga arrancando. Hay valor donde el mercado no mira. Picks desde las 11:00. t.me/frikipickss"
 
 Formato de respuesta (solo esto, sin texto adicional):
 <mensaje telegram>

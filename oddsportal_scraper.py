@@ -21,8 +21,13 @@ URLS_DARTS = [
     "https://www.oddsportal.com/darts/europe/european-tour-4/",
 ]
 
-URLS_TABLE_TENNIS = [
-    "https://www.oddsportal.com/table-tennis/",
+URLS_HANDBALL = [
+    "https://www.oddsportal.com/handball/europe/champions-league/",
+    "https://www.oddsportal.com/handball/europe/european-league/",
+    "https://www.oddsportal.com/handball/spain/liga-asobal/",
+    "https://www.oddsportal.com/handball/germany/bundesliga/",
+    "https://www.oddsportal.com/handball/france/starligue/",
+    "https://www.oddsportal.com/handball/norway/rema-1000-ligaen/",
 ]
 
 
@@ -244,6 +249,19 @@ def scrape_all_darts() -> list[dict]:
     all_matches = []
     for url in URLS_DARTS:
         for m in scrape_oddsportal(url, "darts"):
+            key = (m["player1"].lower(), m["player2"].lower())
+            if key not in seen:
+                seen.add(key)
+                all_matches.append(m)
+    return all_matches
+
+
+def scrape_all_handball() -> list[dict]:
+    """Scrape todas las URLs de balonmano y devuelve lista unificada sin duplicados."""
+    seen = set()
+    all_matches = []
+    for url in URLS_HANDBALL:
+        for m in scrape_oddsportal(url, "handball"):
             key = (m["player1"].lower(), m["player2"].lower())
             if key not in seen:
                 seen.add(key)

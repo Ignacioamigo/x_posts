@@ -101,10 +101,10 @@ def preview_diario():
     matches = get_todays_matches()
     if matches:
         n_darts = sum(1 for m in matches if m["sport"] == "darts")
-        n_tt    = sum(1 for m in matches if m["sport"] == "table-tennis")
+        n_tt    = sum(1 for m in matches if m["sport"] == "handball")
         torneos = list({m.get("tournament", "") for m in matches if m.get("tournament")})[:3]
         resumen_partidos = (
-            f"{n_darts} partidos de dardos, {n_tt} de tenis de mesa. "
+            f"{n_darts} partidos de dardos, {n_tt} de balonmano. "
             f"Torneos: {', '.join(torneos) if torneos else 'varios'}"
         )
         primer_slot = "11:00"
@@ -157,7 +157,7 @@ def run_pipeline(sport: str = None, session: str = ""):
 
     # Obtener partidos y filtrar por deporte
     all_matches = get_todays_matches()
-    sport_alt = "table-tennis" if sport == "darts" else "darts"
+    sport_alt = "handball" if sport == "darts" else "darts"
 
     matches = [m for m in all_matches if sport is None or m["sport"] == sport]
 
@@ -346,7 +346,7 @@ def resumen_diario():
     elif weekday_manana in (5, 6):
         mensaje_manana = "Mañana hay dardos PDC. Estad atentos 🎯"
     else:
-        mensaje_manana = "Mañana volvemos con más tenis de mesa y dardos ⏰"
+        mensaje_manana = "Mañana volvemos con más balonmano y dardos ⏰"
 
     prompt = RESUMEN_PROMPT.format(
         datos_dia=datos_dia,
@@ -428,11 +428,11 @@ def main():
 
     # Slots diarios
     schedule.every().day.at("07:00").do(preview_diario)
-    schedule.every().day.at("11:00").do(run_pipeline, sport="table-tennis", session="mañana")
-    schedule.every().day.at("13:00").do(run_pipeline, sport="table-tennis", session="tarde")
+    schedule.every().day.at("11:00").do(run_pipeline, sport="handball", session="mañana")
+    schedule.every().day.at("13:00").do(run_pipeline, sport="handball", session="tarde")
     schedule.every().day.at("17:00").do(run_pipeline, sport="darts",        session="tarde")
     schedule.every().day.at("19:00").do(run_pipeline, sport="darts",        session="prime")
-    schedule.every().day.at("21:00").do(run_pipeline, sport="table-tennis", session="noche")
+    schedule.every().day.at("21:00").do(run_pipeline, sport="handball", session="noche")
     schedule.every().day.at("23:30").do(resumen_diario)
     schedule.every().day.at("00:00").do(_reset_x_counter)
 
