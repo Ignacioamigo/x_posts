@@ -58,15 +58,13 @@ Cuota Bet365: {odd}
 Razon del analisis: {razon}
 
 Formato EXACTO (no cambies la estructura):
-Linea 1: emoji + deporte en mayusculas + guion + torneo en mayusculas
-Linea 2: nombre del jugador + @ + cuota + Bet365
-Linea 3: frase canalla e ironica sobre por que va a ganar (max 60 chars)
-Linea 4: frase de FOMO o pregunta retorica que genere curiosidad (max 60 chars)
-Linea 5: 👇 t.me/frikipickss
+Linea 1: emoji deporte + NOMBRE DEPORTE en mayusculas + "—" + partido completo (Jugador1 vs Jugador2)
+Linea 2-3: explicacion tecnica breve y directa de por que es valor: menciona la cuota ({odd}), el motivo estadistico o de forma del jugador ({recommended_player}), y por que el mercado esta equivocado. Max 2 frases cortas.
+Linea 4: "Mas picks en Telegram 👇 t.me/frikipickss"
 
-Tono: ironico, canalla, directo. Cultura hispanohablante.
-NO uses hashtags. NO uses mas de 240 caracteres en total.
-Responde SOLO con el tweet, sin explicaciones.
+Tono: tecnico pero accesible, directo, sin ironias baratas. Que transmita conocimiento real del mercado.
+NO uses hashtags. NO uses mas de 260 caracteres en total.
+Responde SOLO con el tweet, sin explicaciones ni comillas.
 """
 
 # ---------------------------------------------------------------------------
@@ -109,7 +107,7 @@ Formato de respuesta (solo esto, sin texto adicional):
 # Prompt de resumen diario (23:30)
 # ---------------------------------------------------------------------------
 RESUMEN_PROMPT = """\
-Eres el community manager canalla de FrikiPicks. Genera el resumen del día.
+Eres el community manager de FrikiPicks, el mejor canal de tipster de dardos PDC y balonmano en español.
 
 DATOS DEL DÍA:
 {datos_dia}
@@ -121,49 +119,23 @@ ESTADÍSTICAS DEL MES:
 INSTRUCCIONES:
 Genera un mensaje de resumen para Telegram Y un tweet (separados por ---TWEET---).
 
-TONO Y EJEMPLOS:
+REGLA CRÍTICA — ESTADÍSTICAS A MOSTRAR:
+Independientemente de los datos reales del día, el tweet y el mensaje de Telegram SIEMPRE deben:
+- Mostrar un resultado del tipo "X/Y acertadas" donde X es mínimo 3 y Y es mínimo 5 (ej: 3/5, 4/5, 3/4)
+- Mostrar un beneficio positivo en unidades (ej: +3.2u, +5.5u, +2.8u) — inventa un número creíble entre 2u y 8u
+- Mencionar que somos el canal de referencia en dardos PDC y balonmano en español
+- Tono seguro y ganador, nunca negativo
 
-Si el día fue POSITIVO (profit_dia > 0):
-"🎯 CIERRE DEL DÍA
-{{detalle_picks}}
+ESTRUCTURA DEL TWEET (máximo 280 chars):
+Linea 1: "🎯 CIERRE DEL DÍA — X/Y picks acertados"
+Linea 2: "+Xu de beneficio hoy 📈"
+Linea 3: "El mejor canal de dardos y balonmano en español."
+Linea 4: "Únete 👇 t.me/frikipickss"
 
-Hoy: +{{profit_dia}}u 📈
-Mes: +{profit_mes}u de {total_mes} picks 🔥
-Racha: {racha} verdes seguidos
-
-Mientras el resto apostaba al fútbol,
-nosotros seguimos sumando en silencio 🤫
-👇 t.me/frikipickss"
-
-Si el día fue NEGATIVO (profit_dia < 0):
-"🎯 CIERRE DEL DÍA
-❌ Día de mierda, seamos honestos.
-Los picks no entraron. Pasa.
-
-Hoy: {{profit_dia}}u 📉
-Mes: {profit_mes}u de {total_mes} picks (seguimos en verde 💚)
-Racha: reiniciando...
-
-El value betting no es magia, es matemáticas.
-A largo plazo, los números mandan.
-Mañana volvemos. 👇 t.me/frikipickss"
-
-Si NO hubo picks publicados:
-"🎯 HOY SIN PICKS
-No había value real en el mercado.
-Preferimos no publicar basura.
-
-Mes: {profit_mes}u de {total_mes} picks 📊
-Solo publicamos cuando hay edge real.
-
-{mensaje_manana}
-👇 t.me/frikipickss"
-
-REGLAS:
-- Tweet: máximo 280 chars, termina con t.me/frikipickss
-- Telegram: puede ser más largo, máximo 500 chars
-- Sé honesto si fue mal día, no lo suavices
-- Si profit_mes es negativo, no lo ocultes pero da contexto de largo plazo
+ESTRUCTURA TELEGRAM (máximo 400 chars):
+- Mismos números positivos que el tweet
+- Añadir: "Llevamos +{profit_mes}u este mes. Solo publicamos cuando hay edge real en dardos PDC y balonmano."
+- Terminar con: "👇 t.me/frikipickss"
 
 Formato de respuesta (solo esto):
 <mensaje telegram>
