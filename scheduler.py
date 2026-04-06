@@ -17,6 +17,7 @@ from historial import (
 )
 from scraper import get_todays_matches, get_match_context
 from odds_scraper import get_odds_from_oddsportal, detect_value
+from oddsportal_scraper import scrape_all_darts, scrape_all_handball
 from analyzer import analyze_match, is_publishable_pick
 from publisher import (
     publish_telegram, publish_telegram_text,
@@ -97,8 +98,11 @@ def preview_diario():
 
     logger.info("=== PREVIEW DIARIO (%s) ===", fecha)
 
-    # Buscar partidos del día para el preview
-    matches = get_todays_matches()
+    # Buscar partidos del día para el preview (OddsPortal, sin filtro de hora)
+    try:
+        matches = scrape_all_darts() + scrape_all_handball()
+    except Exception:
+        matches = get_todays_matches()
     if matches:
         n_darts = sum(1 for m in matches if m["sport"] == "darts")
         n_tt    = sum(1 for m in matches if m["sport"] == "handball")
@@ -140,6 +144,56 @@ def preview_diario():
 
 
 # ---------------------------------------------------------------------------
+# Helper: obtener partidos con cuotas de OddsPortal (fallback → Gemini)
+# ---------------------------------------------------------------------------
+
+def _get_matches_with_odds(sport: str, now: datetime) -> list[dict]:
+    """
+    Fuente principal: OddsPortal Selenium (partidos + cuotas Bet365 reales).
+    Fallback: Gemini Search si OddsPortal falla o devuelve vacío.
+    Devuelve partidos futuros filtrados por hora actual.
+    """
+    sport_alt = "handball" if sport == "darts" else "darts"
+
+    def _upcoming(matches):
+        result = []
+        for m in matches:
+            try:
+                dt = datetime.strptime(
+                    f"{now.strftime('%Y-%m-%d')} {m['time']}", "%Y-%m-%d %H:%M"
+                )
+                if dt > now:
+                    result.append(m)
+            except ValueError:
+                result.append(m)  # hora desconocida → incluir
+        return result
+
+    try:
+        matches = scrape_all_darts() if sport == "darts" else scrape_all_handball()
+        matches = _upcoming(matches)
+
+        if not matches:
+            logger.info("OddsPortal: sin %s, probando %s...", sport, sport_alt)
+            matches = scrape_all_handball() if sport == "darts" else scrape_all_darts()
+            matches = _upcoming(matches)
+
+        if matches:
+            logger.info("OddsPortal: %d partidos con cuotas Bet365", len(matches))
+            return matches
+
+    except Exception as e:
+        logger.error("OddsPortal scraper falló: %s — usando Gemini fallback", e)
+
+    # ── Fallback Gemini ───────────────────────────────────────────────────────
+    logger.info("Fallback Gemini Search para partidos...")
+    all_matches = get_todays_matches()
+    matches = [m for m in all_matches if m["sport"] == sport]
+    if not matches:
+        matches = [m for m in all_matches if m["sport"] == sport_alt]
+    return matches
+
+
+# ---------------------------------------------------------------------------
 # Pipeline principal (parametrizado por sport y session)
 # ---------------------------------------------------------------------------
 
@@ -155,15 +209,8 @@ def run_pipeline(sport: str = None, session: str = ""):
     logger.info("PIPELINE %s — %s", label.upper(), now.strftime("%Y-%m-%d %H:%M"))
     logger.info("=" * 55)
 
-    # Obtener partidos y filtrar por deporte
-    all_matches = get_todays_matches()
-    sport_alt = "handball" if sport == "darts" else "darts"
-
-    matches = [m for m in all_matches if sport is None or m["sport"] == sport]
-
-    if not matches and sport:
-        logger.info("Sin partidos de %s. Buscando %s como alternativa...", sport, sport_alt)
-        matches = [m for m in all_matches if m["sport"] == sport_alt]
+    # Obtener partidos con cuotas desde OddsPortal (fallback → Gemini)
+    matches = _get_matches_with_odds(sport, now)
 
     if not matches:
         logger.info("Sin partidos para el slot %s. Skipping.", label)
@@ -186,13 +233,23 @@ def run_pipeline(sport: str = None, session: str = ""):
         try:
             match_context = get_match_context(player1, player2, sport_m)
 
-            odds_data = get_odds_from_oddsportal(player1, player2)
-            b365_p1 = odds_data.get("bet365", {}).get("player1")
-            b365_p2 = odds_data.get("bet365", {}).get("player2")
+            # Cuotas: vienen del scraper de OddsPortal directamente
+            b365_p1 = match.get("odd_p1")
+            b365_p2 = match.get("odd_p2")
+
+            # Fallback a Gemini si no hay cuotas en el match (vía Gemini Search)
+            if not b365_p1 or not b365_p2:
+                logger.info("Sin cuotas en scraper para %s vs %s, consultando Gemini...", player1, player2)
+                odds_fallback = get_odds_from_oddsportal(player1, player2)
+                b365_p1 = odds_fallback.get("bet365", {}).get("player1")
+                b365_p2 = odds_fallback.get("bet365", {}).get("player2")
 
             if not b365_p1 or not b365_p2:
                 logger.warning("Sin cuotas Bet365 para %s vs %s, saltando", player1, player2)
                 continue
+
+            # Construir odds_data para el analyzer
+            odds_data = {"bet365": {"player1": b365_p1, "player2": b365_p2}}
 
             analysis = analyze_match(match_context, odds_data)
             if not analysis:
