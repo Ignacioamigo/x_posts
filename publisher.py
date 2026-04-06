@@ -183,29 +183,24 @@ def generate_x_tweets(
             recommended = player2
 
         prompt = TWEETS_PROMPT.format(
-            sport=f"{sport_name} {emoji}",
+            sport=sport,
             tournament=tournament_label,
             player1=player1,
             player2=player2,
             recommended_player=recommended,
             odd=odd,
             razon=analysis.get("razon", "Sin razon"),
-            factores_clave=", ".join(analysis.get("factores_clave", [])),
         )
 
-        logger.info("Generando tweets para %s vs %s...", player1, player2)
+        logger.info("Generando tweet para %s vs %s...", player1, player2)
         response = _gemini_client.models.generate_content(model=MODEL, contents=prompt)
 
-        raw = response.text
-        tweets = [t.strip() for t in raw.split("---TWEET---") if t.strip()]
+        tweet = response.text.strip()
+        if len(tweet) > 280:
+            tweet = tweet[:277] + "..."
 
-        # Devolver solo el mejor tweet (el primero: estilo directo con cuota y liga)
-        best = tweets[0] if tweets else ""
-        if len(best) > 280:
-            best = best[:277] + "..."
-
-        logger.info("Tweet generado: %s...", best[:60])
-        return [best] if best else []
+        logger.info("Tweet generado: %s...", tweet[:60])
+        return [tweet] if tweet else []
 
     except Exception as e:
         logger.error("Error generando tweets: %s", e)

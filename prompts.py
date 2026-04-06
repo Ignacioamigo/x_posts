@@ -48,48 +48,25 @@ RESTRICCIONES:
 # Prompt de generación de tweets
 # ---------------------------------------------------------------------------
 TWEETS_PROMPT = """\
-Eres el community manager de FrikiPicks, tipster de dardos PDC y tenis de mesa.
-Estilo: directo, irónico, confiado. Sin análisis técnico, sin porcentajes de EV.
+Genera UN tweet para este pick de apuestas deportivas.
 
-DATOS DEL PICK:
-- Deporte: {sport}
-- Torneo/Liga: {tournament}
-- Partido: {player1} vs {player2}
-- Jugador recomendado: {recommended_player}
-- Cuota Bet365: {odd}
-- Razon del pick: {razon}
-- Factores clave: {factores_clave}
+Partido: {player1} vs {player2}
+Deporte: {sport} (si es table-tennis escribe PING PONG, si es darts escribe DARDOS)
+Torneo: {tournament}
+Pick ganador: {recommended_player}
+Cuota Bet365: {odd}
+Razon del analisis: {razon}
 
-GENERA exactamente 4 tweets con estos 4 estilos (en este orden):
+Formato EXACTO (no cambies la estructura):
+Linea 1: emoji + deporte en mayusculas + guion + torneo en mayusculas
+Linea 2: nombre del jugador + @ + cuota + Bet365
+Linea 3: frase canalla e ironica sobre por que va a ganar (max 60 chars)
+Linea 4: frase de FOMO o pregunta retorica que genere curiosidad (max 60 chars)
+Linea 5: 👇 t.me/frikipickss
 
-1. DIRECTO: emoji deporte + TORNEO EN MAYÚSCULAS + jugador @cuota + 1 dato clave + t.me/frikipickss
-2. IRÓNICO: contradicción entre el favorito del mercado y la realidad + punch final
-3. FOMO: "esto lleva semanas en Telegram, hoy lo dejo aquí gratis" + jugador @cuota
-4. PREGUNTA: "¿alguien más ve que Bet365 está regalando a X @cuota?" + 👀 + t.me/frikipickss
-
-REGLAS ESTRICTAS:
-- Máximo 200 caracteres de texto en cada tweet (sin contar la URL)
-- NO uses hashtags
-- NO menciones EV ni porcentajes
-- Menciona la cuota en todos los tweets
-- Menciona el torneo/liga en al menos 2 tweets
-- Termina tweets 1 y 4 con t.me/frikipickss
-
-EJEMPLOS DE TONO:
-
-Tenis de mesa:
-Tweet 1: "🏓 LIGA PRO RUSA\\nKalashnikov @2.80 en Bet365\\nEl favorito lleva 3 derrotas seguidas.\\nPicks completos 👇 t.me/frikipickss"
-Tweet 2: "Tunitsyn favorito en la Liga Rusa.\\nKalashnikov lleva 5 de 6 ganados.\\nLos números no cuadran. Yo sé lo que hago 🏓"
-Tweet 3: "Este pick de Liga Pro Rusa lleva semanas saliendo solo en Telegram.\\nHoy lo dejo aquí gratis 👇\\nKalashnikov @2.80 🏓"
-Tweet 4: "¿Alguien más ve que Bet365 está regalando a Kalashnikov @2.80 en la Liga Pro Rusa?\\nPorque yo sí 👀 t.me/frikipickss"
-
-Dardos:
-Tweet 1: "🎯 PDC PREMIER LEAGUE\\nMVG @1.85 esta noche en el O2\\nLleva 8 de 10 ganados.\\nt.me/frikipickss"
-Tweet 2: "Wright favorito esta noche.\\nMVG lleva 4 victorias seguidas en Premier League.\\nAlgo no cuadra 🎯"
-Tweet 3: "Este pick del O2 lleva semanas en Telegram.\\nHoy lo dejo aquí gratis 👇\\nMVG @1.85 🎯"
-Tweet 4: "¿Alguien más ve que Bet365 regala a MVG @1.85 esta noche?\\nPorque yo sí 👀 t.me/frikipickss"
-
-Separa cada tweet con la cadena: ---TWEET---
+Tono: ironico, canalla, directo. Cultura hispanohablante.
+NO uses hashtags. NO uses mas de 240 caracteres en total.
+Responde SOLO con el tweet, sin explicaciones.
 """
 
 # ---------------------------------------------------------------------------
