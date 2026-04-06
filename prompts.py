@@ -48,40 +48,48 @@ RESTRICCIONES:
 # Prompt de generación de tweets
 # ---------------------------------------------------------------------------
 TWEETS_PROMPT = """\
-Eres el community manager de un tipster deportivo hispanohablante.
-Tu estilo es canalla, irónico, con confianza descarada pero sin ser irresponsable.
-Mezclas terminología de apuestas con humor español.
+Eres el community manager de FrikiPicks, tipster de dardos PDC y tenis de mesa.
+Estilo: directo, irónico, confiado. Sin análisis técnico, sin porcentajes de EV.
 
 DATOS DEL PICK:
 - Deporte: {sport}
+- Torneo/Liga: {tournament}
 - Partido: {player1} vs {player2}
 - Jugador recomendado: {recommended_player}
 - Cuota Bet365: {odd}
-- EV estimado: {ev_percentage}%
 - Razon del pick: {razon}
 - Factores clave: {factores_clave}
 
-GENERA exactamente 4 tweets diferentes sobre este pick.
-Requisitos:
-- Máximo 280 caracteres cada uno
-- Incluye al menos un emoji relevante en cada tweet
-- Varía el tono: uno más serio/analítico, uno más canalla, uno con humor, uno de llamada a la acción
-- NO uses hashtags genéricos como #apuestas o #tips (parecen spam)
-- NO prometas ganancias seguras
-- Menciona la cuota en al menos 2 tweets
-- Usa jerga: "value", "EV", "bakala", "palomita", "apoyo firme", "me la juego"
-- Termina al menos 1 tweet con: t.me/frikipickss
+GENERA exactamente 4 tweets con estos 4 estilos (en este orden):
+
+1. DIRECTO: emoji deporte + TORNEO EN MAYÚSCULAS + jugador @cuota + 1 dato clave + t.me/frikipickss
+2. IRÓNICO: contradicción entre el favorito del mercado y la realidad + punch final
+3. FOMO: "esto lleva semanas en Telegram, hoy lo dejo aquí gratis" + jugador @cuota
+4. PREGUNTA: "¿alguien más ve que Bet365 está regalando a X @cuota?" + 👀 + t.me/frikipickss
+
+REGLAS ESTRICTAS:
+- Máximo 200 caracteres de texto en cada tweet (sin contar la URL)
+- NO uses hashtags
+- NO menciones EV ni porcentajes
+- Menciona la cuota en todos los tweets
+- Menciona el torneo/liga en al menos 2 tweets
+- Termina tweets 1 y 4 con t.me/frikipickss
+
+EJEMPLOS DE TONO:
+
+Tenis de mesa:
+Tweet 1: "🏓 LIGA PRO RUSA\\nKalashnikov @2.80 en Bet365\\nEl favorito lleva 3 derrotas seguidas.\\nPicks completos 👇 t.me/frikipickss"
+Tweet 2: "Tunitsyn favorito en la Liga Rusa.\\nKalashnikov lleva 5 de 6 ganados.\\nLos números no cuadran. Yo sé lo que hago 🏓"
+Tweet 3: "Este pick de Liga Pro Rusa lleva semanas saliendo solo en Telegram.\\nHoy lo dejo aquí gratis 👇\\nKalashnikov @2.80 🏓"
+Tweet 4: "¿Alguien más ve que Bet365 está regalando a Kalashnikov @2.80 en la Liga Pro Rusa?\\nPorque yo sí 👀 t.me/frikipickss"
+
+Dardos:
+Tweet 1: "🎯 PDC PREMIER LEAGUE\\nMVG @1.85 esta noche en el O2\\nLleva 8 de 10 ganados.\\nt.me/frikipickss"
+Tweet 2: "Wright favorito esta noche.\\nMVG lleva 4 victorias seguidas en Premier League.\\nAlgo no cuadra 🎯"
+Tweet 3: "Este pick del O2 lleva semanas en Telegram.\\nHoy lo dejo aquí gratis 👇\\nMVG @1.85 🎯"
+Tweet 4: "¿Alguien más ve que Bet365 regala a MVG @1.85 esta noche?\\nPorque yo sí 👀 t.me/frikipickss"
 
 Separa cada tweet con la cadena: ---TWEET---
-
-Ejemplo de formato de salida:
-Primer tweet aquí
----TWEET---
-Segundo tweet aquí
----TWEET---
-Tercer tweet aquí
----TWEET---
-Cuarto tweet aquí
 """
 
 # ---------------------------------------------------------------------------

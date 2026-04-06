@@ -156,26 +156,26 @@ def generate_x_tweets(
     sport: str,
     analysis: dict,
     odd: float,
+    tournament: str = "",
 ) -> list[str]:
     """Genera 4 tweets con Gemini. Devuelve lista vacía si falla."""
     try:
         sport_name = "Dardos PDC" if sport == "darts" else "Tenis de Mesa"
         emoji = SPORT_EMOJI.get(sport, "⚽")
+        tournament_label = tournament if tournament else sport_name
 
         if analysis["prob_player1"] >= analysis["prob_player2"]:
             recommended = player1
-            llm_prob = analysis["prob_player1"]
         else:
             recommended = player2
-            llm_prob = analysis["prob_player2"]
 
         prompt = TWEETS_PROMPT.format(
             sport=f"{sport_name} {emoji}",
+            tournament=tournament_label,
             player1=player1,
             player2=player2,
             recommended_player=recommended,
             odd=odd,
-            ev_percentage=round((llm_prob * odd - 1) * 100, 2),
             razon=analysis.get("razon", "Sin razon"),
             factores_clave=", ".join(analysis.get("factores_clave", [])),
         )

@@ -171,13 +171,14 @@ def run_pipeline(sport: str = None, session: str = ""):
     logger.info("Partidos a procesar: %d", len(matches))
 
     # ── Fase 1: analizar todos los partidos y recoger candidatos ────────────
-    candidatos = []  # lista de (ev, player1, player2, sport_m, best_analysis, best_value, best_odd)
+    candidatos = []  # lista de (ev, player1, player2, sport_m, tournament, best_analysis, best_value, best_odd)
 
     for i, match in enumerate(matches, 1):
-        player1 = match["player1"]
-        player2 = match["player2"]
-        sport_m = match["sport"]
-        hora    = match.get("time", "?")
+        player1    = match["player1"]
+        player2    = match["player2"]
+        sport_m    = match["sport"]
+        hora       = match.get("time", "?")
+        tournament = match.get("tournament", "")
 
         logger.info("[%d/%d] %s vs %s (%s) %s", i, len(matches), player1, player2, sport_m, hora)
 
@@ -236,7 +237,7 @@ def run_pipeline(sport: str = None, session: str = ""):
 
             if best_value and is_publishable_pick(best_analysis, best_value):
                 ev = best_value["ev_percentage"]
-                candidatos.append((ev, player1, player2, sport_m, best_analysis, best_value, best_odd))
+                candidatos.append((ev, player1, player2, sport_m, tournament, best_analysis, best_value, best_odd))
                 logger.info("Candidato aceptado: %s @%.2f | EV=%.2f%% | %s",
                             player1, best_odd, ev, best_analysis["confianza"])
             else:
@@ -259,7 +260,7 @@ def run_pipeline(sport: str = None, session: str = ""):
             p1, p2, ev,
         )
 
-    ev, player1, player2, sport_m, best_analysis, best_value, best_odd = candidatos[0]
+    ev, player1, player2, sport_m, tournament, best_analysis, best_value, best_odd = candidatos[0]
     logger.info("✅ PICK (mejor del slot): %s @%.2f | EV=%.2f%% | %s",
                 player1, best_odd, ev, best_analysis["confianza"])
 
@@ -281,6 +282,7 @@ def run_pipeline(sport: str = None, session: str = ""):
         tweets = generate_x_tweets(
             player1=player1, player2=player2, sport=sport_m,
             analysis=best_analysis, odd=best_odd,
+            tournament=tournament,
         )
         if tweets:
             cupos = _X_LIMITE - _x_posts_hoy
