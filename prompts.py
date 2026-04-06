@@ -62,7 +62,7 @@ ESTRUCTURA EXACTA:
 - Primera frase (max 80 chars): el partido + dato técnico concreto del pick ({recommended_player}): promedio, forma reciente, porcentaje de cierre, lo que sea relevante
 - Segunda frase (max 80 chars): por qué la cuota de {odd} está infravalorada por el mercado
 - Cierre: "Mi lectura: {recommended_player} @ {odd}"
-- Última línea: "Más análisis 👇 t.me/frikipickss"
+- Última línea: una de estas dos opciones (elige aleatoriamente): "Tenéis la apuesta completa gratis en el canal (enlace en mi perfil)" O "Más detalles de este pick en mi bio 👆"
 
 Max 280 chars en total. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
@@ -83,7 +83,7 @@ ESTRUCTURA EXACTA:
 - Primera frase: {player1} vs {player2} — el dato táctico clave que genera valor (sistema, portero, debilidad específica)
 - Segunda frase: por qué ese dato hace que la cuota de {odd} tenga valor real
 - Cierre: "Mi apuesta: {recommended_player} @ {odd}"
-- Última línea: "Canal completo 👇 t.me/frikipickss"
+- Última línea: una de estas dos opciones (elige aleatoriamente): "Apuesta completa en el canal, enlace en mi perfil 👆" O "Más detalles en mi bio 👆"
 
 Max 280 chars. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
@@ -100,15 +100,17 @@ Picks del día:
 TWEET 1 — GANCHO (max 230 chars):
 Empieza con "Para completar la jornada de hoy," y menciona cuántos picks hay y el torneo más interesante.
 Cierra con "👇" para indicar que viene más.
-NO incluyas cuotas ni picks aquí.
+NO incluyas cuotas, picks ni ningún enlace aquí.
 
 TWEET 2 — PICKS (max 275 chars):
 Los primeros {n_picks_tweet2} picks, uno por línea con este formato exacto:
 "[emoji deporte] [Jugador recomendado] @ [cuota] — [razón en max 7 palabras]"
 🎯 para dardos, 🤾 para balonmano.
+NO incluyas ningún enlace aquí.
 
 TWEET 3 — CIERRE (max 240 chars):
 {tweet3_instruccion}
+IMPORTANTE: este es el único tweet del hilo donde puedes incluir el enlace. Termina con: "Canal completo 👇 t.me/frikipickss"
 
 Tono: experto, directo. Sin hashtags.
 Separa los 3 tweets ÚNICAMENTE con esta línea: ---
@@ -135,7 +137,7 @@ TWEET (max 260 chars):
 Línea 1: "✅ [resultado] en {deporte_label} — pasó lo que dijimos"
 Línea 2: "Razón técnica breve de por qué entró"
 Línea 3: "+{beneficio}u 📈"
-Línea 4: "Mañana más 👇 t.me/frikipickss"
+Línea 4: una de estas dos (elige aleatoriamente): "Picks de mañana en mi bio 👆" O "Seguimiento completo en el canal (enlace en perfil) 👆"
 
 TELEGRAM (max 380 chars):
 Mismo contenido pero añade: "El mejor canal de dardos PDC y balonmano en español. Únete y no te pierdas los picks de mañana."
