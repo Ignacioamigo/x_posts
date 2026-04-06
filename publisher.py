@@ -198,14 +198,14 @@ def generate_x_tweets(
 
         raw = response.text
         tweets = [t.strip() for t in raw.split("---TWEET---") if t.strip()]
-        valid = []
-        for tweet in tweets[:4]:
-            if len(tweet) > 280:
-                tweet = tweet[:277] + "..."
-            valid.append(tweet)
 
-        logger.info("Tweets generados: %d", len(valid))
-        return valid
+        # Devolver solo el mejor tweet (el primero: estilo directo con cuota y liga)
+        best = tweets[0] if tweets else ""
+        if len(best) > 280:
+            best = best[:277] + "..."
+
+        logger.info("Tweet generado: %s...", best[:60])
+        return [best] if best else []
 
     except Exception as e:
         logger.error("Error generando tweets: %s", e)
