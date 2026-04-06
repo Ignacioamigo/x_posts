@@ -138,6 +138,9 @@ def _parse_matches_json(raw: str) -> list[dict] | None:
         logger.error("Gemini devolvió JSON pero no es una lista: %s", type(data))
         return None
 
+    # Nombres que indican jugador sin confirmar
+    _PLACEHOLDERS = {"tba", "tbd", "?", "-", "unknown", "player 1", "player 2", "jugador 1", "jugador 2"}
+
     # Validar y normalizar cada partido
     valid = []
     for item in data:
@@ -148,6 +151,9 @@ def _parse_matches_json(raw: str) -> list[dict] | None:
         sport = item.get("sport", "").strip().lower()
         if not player1 or not player2 or sport not in ("darts", "table-tennis"):
             logger.warning("Partido inválido descartado: %s", item)
+            continue
+        if player1.lower() in _PLACEHOLDERS or player2.lower() in _PLACEHOLDERS:
+            logger.warning("Partido con jugador sin confirmar descartado: %s vs %s", player1, player2)
             continue
         valid.append({
             "player1": player1,
