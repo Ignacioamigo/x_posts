@@ -64,6 +64,7 @@ ESTRUCTURA EXACTA:
 - Cierre: "Mi lectura: {recommended_player} @ {odd}"
 - Última línea: una de estas dos opciones (elige aleatoriamente): "Tenéis la apuesta completa gratis en el canal (enlace en mi perfil)" O "Más detalles de este pick en mi bio 👆"
 
+PROHIBIDO incluir ninguna URL, enlace ni dominio (t.me, http, telegram, etc.) en el tweet.
 Max 280 chars en total. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
 
@@ -85,6 +86,7 @@ ESTRUCTURA EXACTA:
 - Cierre: "Mi apuesta: {recommended_player} @ {odd}"
 - Última línea: una de estas dos opciones (elige aleatoriamente): "Apuesta completa en el canal, enlace en mi perfil 👆" O "Más detalles en mi bio 👆"
 
+PROHIBIDO incluir ninguna URL, enlace ni dominio (t.me, http, telegram, etc.) en el tweet.
 Max 280 chars. Sin hashtags. Responde SOLO con el tweet, sin comillas.
 """
 
@@ -138,6 +140,7 @@ Línea 1: "✅ [resultado] en {deporte_label} — pasó lo que dijimos"
 Línea 2: "Razón técnica breve de por qué entró"
 Línea 3: "+{beneficio}u 📈"
 Línea 4: una de estas dos (elige aleatoriamente): "Picks de mañana en mi bio 👆" O "Seguimiento completo en el canal (enlace en perfil) 👆"
+PROHIBIDO incluir ninguna URL, enlace ni dominio (t.me, http, telegram, etc.) en el tweet.
 
 TELEGRAM (max 380 chars):
 Mismo contenido pero añade: "El mejor canal de dardos PDC y balonmano en español. Únete y no te pierdas los picks de mañana."

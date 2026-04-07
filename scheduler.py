@@ -61,6 +61,13 @@ def setup_logging():
 
 logger = logging.getLogger(__name__)
 
+import re as _re
+_URL_PATTERN = _re.compile(r'https?://\S+|t\.me/\S+', _re.IGNORECASE)
+
+def _strip_links(text: str) -> str:
+    """Elimina cualquier URL del tweet (seguridad frente a Gemini desobediente)."""
+    return _URL_PATTERN.sub("", text).strip()
+
 # ---------------------------------------------------------------------------
 # Contador diario de posts en X (máx 10)
 # ---------------------------------------------------------------------------
@@ -293,7 +300,7 @@ def post_previa():
 
     if can_post_x():
         try:
-            tweet = _gemini_tweet(PREVIA_PROMPT.format(
+            tweet = _strip_links(_gemini_tweet(PREVIA_PROMPT.format(
                 player1=pick["player1"],
                 player2=pick["player2"],
                 tournament=pick["tournament"],
@@ -301,7 +308,7 @@ def post_previa():
                 recommended_player=pick["analysis"]["recommended_player"],
                 odd=pick["odd"],
                 razon=pick["analysis"].get("razon", ""),
-            ))
+            )))
             image_path = None
             try:
                 image_path = generate_bet365_card(
@@ -348,14 +355,14 @@ def post_dato_tactico():
 
     if can_post_x():
         try:
-            tweet = _gemini_tweet(DATO_TACTICO_PROMPT.format(
+            tweet = _strip_links(_gemini_tweet(DATO_TACTICO_PROMPT.format(
                 player1=pick["player1"],
                 player2=pick["player2"],
                 tournament=pick["tournament"],
                 recommended_player=pick["analysis"]["recommended_player"],
                 odd=pick["odd"],
                 razon=pick["analysis"].get("razon", ""),
-            ))
+            )))
             tweet_id = publish_single_tweet(tweet)
             if tweet_id:
                 _mark_x(1)
@@ -435,7 +442,12 @@ def post_hilo_tarde():
                 tweet3_instruccion=tweet3_instruccion,
             ))
 
-            tweets = [t.strip() for t in raw.split("---") if t.strip()][:3]
+            tweets_raw = [t.strip() for t in raw.split("---") if t.strip()][:3]
+            # Eliminar links de todos los tweets excepto el último (que lleva t.me real)
+            tweets = [
+                _strip_links(t) if i < len(tweets_raw) - 1 else t
+                for i, t in enumerate(tweets_raw)
+            ]
 
             if len(tweets) > 1:
                 publish_thread(tweets, x_counter_callback=_mark_x)
@@ -509,7 +521,7 @@ def _publicar_resumen(evento: str, deporte_label: str, torneo: str):
         ))
 
         partes = raw.split("---TELEGRAM---")
-        tweet        = partes[0].strip()
+        tweet        = _strip_links(partes[0].strip())
         msg_telegram = partes[1].strip() if len(partes) > 1 else tweet
 
         publish_telegram_text(msg_telegram)
