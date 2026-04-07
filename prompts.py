@@ -5,6 +5,7 @@ Prompts para Gemini API.
 - THREAD_PROMPT:       15:00 — hilo de 3 tweets con picks 3, 4 y 5
 - RESUMEN_DEPORTE_PROMPT: 22:30 y 23:30 — cierre fabricado por deporte
 - ANALYSIS_PROMPT:     análisis estadístico → JSON con probabilidades
+- DAILY_X_PICK_PROMPT: tweet único diario anti-ban para X (~12:00)
 """
 
 # ---------------------------------------------------------------------------
@@ -148,4 +149,44 @@ Termina con: "👇 t.me/frikipickss"
 
 Separa tweet y telegram con: ---TELEGRAM---
 Responde SOLO con tweet y telegram, sin explicaciones.
+"""
+
+# ---------------------------------------------------------------------------
+# Tweet único diario anti-ban para X (~12:00)
+# ---------------------------------------------------------------------------
+DAILY_X_PICK_PROMPT = """\
+Genera UN tweet de análisis deportivo en español usando EXACTAMENTE la VARIANTE {variant} de las siguientes:
+
+VARIANTE 1 — Dato técnico primero:
+- Línea 1 (arranca con el dato, emoji al final de línea): stat o dato técnico concreto de {recommended_player}
+- Línea 2: por qué la cuota {odd} tiene value real frente al mercado
+- Cierre: "Mi lectura: {recommended_player} @ {odd}"
+- Línea final (elige una al azar): "Análisis completo en bio 👆" / "Criterio completo en mi perfil 👆"
+
+VARIANTE 2 — Pregunta retórica:
+- Línea 1 (empieza con pregunta, sin emoji al inicio): pregunta retórica sobre el partido {player1} vs {player2}
+- Línea 2: respuesta con el dato clave que justifica el pick, emoji a mitad de frase
+- Cierre: "{recommended_player} @ {odd} — value claro"
+- Línea final (elige una al azar): "📊 Análisis en bio" / "Pick completo 👉 ver bio"
+
+VARIANTE 3 — Comparativa directa:
+- Línea 1 (emoji al inicio): comparativa concreta entre {player1} y {player2} con stat real
+- Línea 2 (sin emoji): conclusión sobre dónde está el value en la cuota {odd}
+- Cierre: "Pick del día: {recommended_player} @ {odd} 📌"
+- Línea final (elige una al azar): "Detalles en mi perfil" / "Info completa en bio 👆"
+
+Usa la VARIANTE {variant}.
+
+Partido: {player1} vs {player2}
+Torneo: {tournament}
+Pick: {recommended_player} @ {odd}
+Razón: {razon}
+
+REGLAS ESTRICTAS:
+- PROHIBIDO usar: "apuesta", "apuestas", "bet", "bets", "garantizado", "seguro", "segura"
+- USA en su lugar: "value", "análisis", "pick", "lectura", "criterio", "lógica"
+- PROHIBIDO cualquier URL, enlace, t.me, http, telegram, dominio
+- Los emojis NO deben ir siempre al inicio de cada línea — varía su posición según la variante
+- Max 280 chars totales. Sin hashtags.
+- Responde SOLO con el tweet, sin comillas ni explicaciones.
 """

@@ -27,7 +27,7 @@ from oddsportal_scraper import scrape_all_darts, scrape_all_handball
 from analyzer import analyze_match
 from publisher import (
     publish_telegram, publish_telegram_text,
-    publish_single_tweet, publish_thread,
+    publish_single_tweet,
 )
 from image_generator import generate_bet365_card
 from google import genai
@@ -36,6 +36,7 @@ from config import GEMINI_API_KEY
 from prompts import (
     PREVIA_PROMPT, DATO_TACTICO_PROMPT,
     THREAD_PROMPT, RESUMEN_DEPORTE_PROMPT,
+    DAILY_X_PICK_PROMPT,
 )
 
 TESTING_MODE = os.getenv("TESTING_MODE", "false").lower() == "true"
@@ -298,34 +299,6 @@ def post_previa():
 
     _publish_pick_telegram_and_save(pick)
 
-    if can_post_x():
-        try:
-            tweet = _strip_links(_gemini_tweet(PREVIA_PROMPT.format(
-                player1=pick["player1"],
-                player2=pick["player2"],
-                tournament=pick["tournament"],
-                sport_label=sport_label,
-                recommended_player=pick["analysis"]["recommended_player"],
-                odd=pick["odd"],
-                razon=pick["analysis"].get("razon", ""),
-            )))
-            image_path = None
-            try:
-                image_path = generate_bet365_card(
-                    player=pick["analysis"]["recommended_player"],
-                    opponent=pick["player2"],
-                    odd=pick["odd"],
-                    tournament=pick["tournament"],
-                )
-            except Exception as e:
-                logger.warning("No se pudo generar imagen: %s", e)
-
-            tweet_id = publish_single_tweet(tweet, image_path=image_path)
-            if tweet_id:
-                _mark_x(1)
-        except Exception as e:
-            logger.error("Error generando tweet previa: %s", e)
-
     marcar_publicado_hoy("previa")
     logger.info("Previa publicada: %s vs %s", pick["player1"], pick["player2"])
 
@@ -352,22 +325,6 @@ def post_dato_tactico():
     pick = picks[0]
 
     _publish_pick_telegram_and_save(pick)
-
-    if can_post_x():
-        try:
-            tweet = _strip_links(_gemini_tweet(DATO_TACTICO_PROMPT.format(
-                player1=pick["player1"],
-                player2=pick["player2"],
-                tournament=pick["tournament"],
-                recommended_player=pick["analysis"]["recommended_player"],
-                odd=pick["odd"],
-                razon=pick["analysis"].get("razon", ""),
-            )))
-            tweet_id = publish_single_tweet(tweet)
-            if tweet_id:
-                _mark_x(1)
-        except Exception as e:
-            logger.error("Error generando tweet dato táctico: %s", e)
 
     marcar_publicado_hoy("dato_tactico")
     logger.info("Dato táctico publicado: %s vs %s", pick["player1"], pick["player2"])
@@ -397,67 +354,6 @@ def post_hilo_tarde():
     # Telegram: un mensaje por pick
     for pick in all_picks:
         _publish_pick_telegram_and_save(pick)
-
-    # X: hilo de hasta 3 tweets
-    if can_post_x():
-        try:
-            cupos = _X_LIMITE - _x_posts_hoy
-            picks_for_thread = all_picks[:min(3, cupos)]
-
-            # Construir texto del listado de picks para el prompt
-            emoji_map = {"darts": "🎯", "handball": "🤾"}
-            picks_lines = []
-            for p in picks_for_thread:
-                emoji = emoji_map.get(p["sport"], "⚽")
-                sport_label = "Dardos" if p["sport"] == "darts" else "Balonmano"
-                picks_lines.append(
-                    f"{emoji} {sport_label} — {p['player1']} vs {p['player2']} ({p['tournament']})\n"
-                    f"   Pick: {p['analysis']['recommended_player']} @ {p['odd']}\n"
-                    f"   Razón: {p['analysis'].get('razon', '')}"
-                )
-            picks_list = "\n\n".join(picks_lines)
-
-            n = len(picks_for_thread)
-            if n >= 3:
-                n_picks_tweet2 = 2
-                tweet3_instruccion = (
-                    f"El pick de cierre (el más arriesgado o de mayor cuota) con una frase de remate. "
-                    f"Pick: {picks_for_thread[2]['analysis']['recommended_player']} @ {picks_for_thread[2]['odd']}. "
-                    f"Cierra con: \"Canal completo 👇 t.me/frikipickss\""
-                )
-            elif n == 2:
-                n_picks_tweet2 = 1
-                tweet3_instruccion = (
-                    f"El segundo pick con una frase de cierre. "
-                    f"Pick: {picks_for_thread[1]['analysis']['recommended_player']} @ {picks_for_thread[1]['odd']}. "
-                    f"Cierra con: \"Canal completo 👇 t.me/frikipickss\""
-                )
-            else:
-                # Solo 1 pick disponible → no hilo, tweet único
-                tweet3_instruccion = "Solo hay 1 pick hoy. Pon una frase de cierre motivadora + \"👇 t.me/frikipickss\""
-
-            raw = _gemini_tweet(THREAD_PROMPT.format(
-                picks_list=picks_list,
-                n_picks_tweet2=n_picks_tweet2 if n >= 2 else 1,
-                tweet3_instruccion=tweet3_instruccion,
-            ))
-
-            tweets_raw = [t.strip() for t in raw.split("---") if t.strip()][:3]
-            # Eliminar links de todos los tweets excepto el último (que lleva t.me real)
-            tweets = [
-                _strip_links(t) if i < len(tweets_raw) - 1 else t
-                for i, t in enumerate(tweets_raw)
-            ]
-
-            if len(tweets) > 1:
-                publish_thread(tweets, x_counter_callback=_mark_x)
-            elif tweets:
-                tweet_id = publish_single_tweet(tweets[0])
-                if tweet_id:
-                    _mark_x(1)
-
-        except Exception as e:
-            logger.error("Error generando hilo de tarde: %s", e)
 
     marcar_publicado_hoy("hilo_tarde")
     logger.info("Hilo tarde publicado: %d picks", len(all_picks))
@@ -526,11 +422,6 @@ def _publicar_resumen(evento: str, deporte_label: str, torneo: str):
 
         publish_telegram_text(msg_telegram)
 
-        if can_post_x():
-            tweet_id = publish_single_tweet(tweet)
-            if tweet_id:
-                _mark_x(1)
-
         save_resumen_diario(
             picks_totales=len(picks_hoy),
             picks_win=wins,
@@ -545,6 +436,59 @@ def _publicar_resumen(evento: str, deporte_label: str, torneo: str):
 
     except Exception as e:
         logger.error("Error en resumen %s: %s", evento, e)
+
+
+# ---------------------------------------------------------------------------
+# ~12:00 — Tweet único diario en X (mejor pick del día, anti-ban)
+# ---------------------------------------------------------------------------
+
+def post_daily_x_pick(skip_jitter: bool = False):
+    if ya_publicado_hoy("daily_x_pick"):
+        logger.info("Daily X pick ya publicado hoy, skipping.")
+        return
+
+    if not skip_jitter:
+        jitter = random.randint(0, 30 * 60)  # 0-30 min → ventana 11:45-12:15
+        logger.info("Daily X pick: esperando %d seg (jitter)...", jitter)
+        time.sleep(jitter)
+
+    logger.info("=== DAILY X PICK ===")
+    now = datetime.now()
+
+    darts_picks    = _collect_candidates("darts",    now, max_picks=1)
+    handball_picks = _collect_candidates("handball", now, max_picks=1)
+    all_picks = sorted(darts_picks + handball_picks, key=lambda x: x["ev"], reverse=True)
+
+    if not all_picks:
+        logger.info("Sin partidos para el daily X pick")
+        return
+
+    if not can_post_x():
+        logger.info("Límite X alcanzado, no se publica daily pick")
+        return
+
+    pick = all_picks[0]
+    try:
+        variant = random.randint(1, 3)
+        tweet = _strip_links(_gemini_tweet(DAILY_X_PICK_PROMPT.format(
+            player1=pick["player1"],
+            player2=pick["player2"],
+            tournament=pick["tournament"],
+            recommended_player=pick["analysis"]["recommended_player"],
+            odd=pick["odd"],
+            razon=pick["analysis"].get("razon", ""),
+            variant=variant,
+        )))
+        tweet_id = publish_single_tweet(tweet)
+        if tweet_id:
+            _mark_x(1)
+            marcar_publicado_hoy("daily_x_pick")
+            logger.info(
+                "Daily X pick publicado (variante %d): %s vs %s",
+                variant, pick["player1"], pick["player2"],
+            )
+    except Exception as e:
+        logger.error("Error en daily X pick: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -570,11 +514,12 @@ def main():
     # Catch-up: ejecutar slots perdidos en las últimas 2 horas
     now = datetime.now()
     SLOTS = [
-        ("07:00", post_previa,       {}),
-        ("12:00", post_dato_tactico, {}),
-        ("15:00", post_hilo_tarde,   {}),
-        ("22:30", resumen_handball,  {}),
-        ("23:30", resumen_dardos,    {}),
+        ("07:00", post_previa,          {}),
+        ("11:45", post_daily_x_pick,    {"skip_jitter": True}),
+        ("12:00", post_dato_tactico,    {}),
+        ("15:00", post_hilo_tarde,      {}),
+        ("22:30", resumen_handball,     {}),
+        ("23:30", resumen_dardos,       {}),
     ]
     for slot_time, func, kwargs in SLOTS:
         h, m = map(int, slot_time.split(":"))
@@ -586,14 +531,15 @@ def main():
 
     # Slots diarios
     schedule.every().day.at("07:00").do(post_previa)
+    schedule.every().day.at("11:45").do(post_daily_x_pick)   # jitter interno → 11:45-12:15
     schedule.every().day.at("12:00").do(post_dato_tactico)
     schedule.every().day.at("15:00").do(post_hilo_tarde)
     schedule.every().day.at("22:30").do(resumen_handball)
     schedule.every().day.at("23:30").do(resumen_dardos)
     schedule.every().day.at("00:00").do(_reset_x_counter)
 
-    logger.info("Scheduler activo — slots: 07:00 12:00 15:00 22:30 23:30")
-    logger.info("Límite X: %d posts/día | Pulsa Ctrl+C para detener", _X_LIMITE)
+    logger.info("Scheduler activo — slots: 07:00 11:45(X) 12:00 15:00 22:30 23:30")
+    logger.info("X: 1 tweet/día (~12:00 ±15min) | Pulsa Ctrl+C para detener")
 
     while True:
         try:
