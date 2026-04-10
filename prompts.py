@@ -152,6 +152,46 @@ Responde SOLO con tweet y telegram, sin explicaciones.
 """
 
 # ---------------------------------------------------------------------------
+# Hilo diario en X (~12:00) — 3 tweets
+# ---------------------------------------------------------------------------
+DAILY_X_THREAD_PROMPT = """\
+Genera un HILO de 3 tweets en español para publicar el pick del día en X (Twitter).
+Tono: analista experto, directo, sin sensacionalismo.
+
+Partido: {player1} vs {player2}
+Torneo: {tournament}
+Pick: {recommended_player} @ {odd} Bet365
+EV estimado: {ev:.1f}%
+Prob. estimada: {prob:.1f}%
+Confianza: {confianza}
+Razón: {razon}
+Factores clave: {factores}
+
+TWEET 1 — GANCHO (max 260 chars):
+- Empieza con emoji según deporte (🎯 dardos, 🤾 balonmano)
+- Presenta el partido con un dato técnico concreto y llamativo de {recommended_player}
+- Cierra con "👇" para indicar que continúa
+- NO incluyas pick ni cuota aquí
+
+TWEET 2 — ANÁLISIS (max 275 chars):
+- Desarrolla la razón por la que {recommended_player} tiene ventaja, usa los factores clave
+- Incluye: "EV: +{ev:.1f}% | Prob: {prob:.1f}% | Confianza: {confianza}"
+- NO incluyas ningún enlace aquí
+
+TWEET 3 — PICK Y CIERRE (max 250 chars):
+- Primera línea: "✅ Pick: {recommended_player} @ {odd} Bet365"
+- Segunda línea: stake recomendado ("Stake: 1u") y una frase de cierre breve
+- Última línea (elige una al azar): "Canal completo 👇 t.me/frikipickss" O "Más picks en mi bio 👆"
+
+REGLAS ESTRICTAS:
+- PROHIBIDO usar: "apuesta", "apuestas", "bet", "bets", "garantizado", "seguro"
+- USA en su lugar: "value", "análisis", "pick", "lectura", "criterio"
+- PROHIBIDO cualquier URL excepto t.me/frikipickss en el tweet 3
+- Sin hashtags. Separa los 3 tweets ÚNICAMENTE con esta línea: ---
+- Responde SOLO con los 3 tweets, sin numeración ni explicaciones.
+"""
+
+# ---------------------------------------------------------------------------
 # Tweet único diario anti-ban para X (~12:00)
 # ---------------------------------------------------------------------------
 DAILY_X_PICK_PROMPT = """\

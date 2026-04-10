@@ -27,7 +27,7 @@ from oddsportal_scraper import scrape_all_darts, scrape_all_handball
 from analyzer import analyze_match
 from publisher import (
     publish_telegram, publish_telegram_text,
-    publish_single_tweet,
+    publish_single_tweet, publish_thread,
 )
 from image_generator import generate_bet365_card
 from google import genai
@@ -36,7 +36,7 @@ from config import GEMINI_API_KEY
 from prompts import (
     PREVIA_PROMPT, DATO_TACTICO_PROMPT,
     THREAD_PROMPT, RESUMEN_DEPORTE_PROMPT,
-    DAILY_X_PICK_PROMPT,
+    DAILY_X_PICK_PROMPT, DAILY_X_THREAD_PROMPT,
 )
 
 TESTING_MODE = os.getenv("TESTING_MODE", "false").lower() == "true"
@@ -452,7 +452,7 @@ def post_daily_x_pick(skip_jitter: bool = False):
         logger.info("Daily X pick: esperando %d seg (jitter)...", jitter)
         time.sleep(jitter)
 
-    logger.info("=== DAILY X PICK ===")
+    logger.info("=== DAILY X PICK (HILO) ===")
     now = datetime.now()
 
     darts_picks    = _collect_candidates("darts",    now, max_picks=1)
@@ -468,27 +468,66 @@ def post_daily_x_pick(skip_jitter: bool = False):
         return
 
     pick = all_picks[0]
+    analysis = pick["analysis"]
+    recommended = analysis.get("recommended_player", pick["player1"])
+    prob = (analysis["prob_player1"] if recommended == pick["player1"] else analysis["prob_player2"]) * 100
+    factores = ", ".join(analysis.get("factores_clave", []))
+
+    # --- Telegram ---
     try:
-        variant = random.randint(1, 3)
-        tweet = _strip_links(_gemini_tweet(DAILY_X_PICK_PROMPT.format(
+        tg_ok = publish_telegram(
+            player1=pick["player1"],
+            player2=pick["player2"],
+            sport=pick["sport"],
+            analysis=analysis,
+            value_data=pick["value"],
+            bet365_odd=pick["odd"],
+        )
+        if tg_ok:
+            save_pick(
+                sport=pick["sport"],
+                player1=pick["player1"],
+                player2=pick["player2"],
+                pick_jugador=recommended,
+                cuota=pick["odd"],
+                ev_porcentaje=pick["ev"],
+                confianza=analysis["confianza"],
+                publicado_telegram=True,
+                publicado_x=False,
+            )
+            logger.info("Pick diario publicado en Telegram: %s vs %s", pick["player1"], pick["player2"])
+    except Exception as e:
+        logger.error("Error publicando pick diario en Telegram: %s", e)
+
+    # --- X (hilo) ---
+    try:
+        raw = _gemini_tweet(DAILY_X_THREAD_PROMPT.format(
             player1=pick["player1"],
             player2=pick["player2"],
             tournament=pick["tournament"],
-            recommended_player=pick["analysis"]["recommended_player"],
+            recommended_player=recommended,
             odd=pick["odd"],
-            razon=pick["analysis"].get("razon", ""),
-            variant=variant,
-        )))
-        tweet_id = publish_single_tweet(tweet)
-        if tweet_id:
-            _mark_x(1)
-            marcar_publicado_hoy("daily_x_pick")
-            logger.info(
-                "Daily X pick publicado (variante %d): %s vs %s",
-                variant, pick["player1"], pick["player2"],
-            )
+            ev=pick["ev"],
+            prob=prob,
+            confianza=analysis["confianza"],
+            razon=analysis.get("razon", ""),
+            factores=factores,
+        ))
+
+        tweets = [_strip_links(t.strip()) for t in raw.split("---") if t.strip()]
+        if not tweets:
+            logger.error("Gemini no generó tweets para el hilo")
+        else:
+            n_encolados = publish_thread(tweets, x_counter_callback=_mark_x)
+            if n_encolados:
+                logger.info(
+                    "Hilo X publicado (%d tweets encolados): %s vs %s",
+                    n_encolados, pick["player1"], pick["player2"],
+                )
     except Exception as e:
-        logger.error("Error en daily X pick: %s", e)
+        logger.error("Error en daily X pick (hilo): %s", e)
+
+    marcar_publicado_hoy("daily_x_pick")
 
 
 # ---------------------------------------------------------------------------
@@ -514,10 +553,7 @@ def main():
     # Catch-up: ejecutar slots perdidos en las últimas 2 horas
     now = datetime.now()
     SLOTS = [
-        ("07:00", post_previa,          {}),
         ("11:45", post_daily_x_pick,    {"skip_jitter": True}),
-        ("12:00", post_dato_tactico,    {}),
-        ("15:00", post_hilo_tarde,      {}),
         ("22:30", resumen_handball,     {}),
         ("23:30", resumen_dardos,       {}),
     ]
@@ -530,16 +566,13 @@ def main():
             func(**kwargs)
 
     # Slots diarios
-    schedule.every().day.at("07:00").do(post_previa)
-    schedule.every().day.at("11:45").do(post_daily_x_pick)   # jitter interno → 11:45-12:15
-    schedule.every().day.at("12:00").do(post_dato_tactico)
-    schedule.every().day.at("15:00").do(post_hilo_tarde)
+    schedule.every().day.at("11:45").do(post_daily_x_pick)   # jitter interno → 11:45-12:15 | publica en Telegram + X
     schedule.every().day.at("22:30").do(resumen_handball)
     schedule.every().day.at("23:30").do(resumen_dardos)
     schedule.every().day.at("00:00").do(_reset_x_counter)
 
-    logger.info("Scheduler activo — slots: 07:00 11:45(X) 12:00 15:00 22:30 23:30")
-    logger.info("X: 1 tweet/día (~12:00 ±15min) | Pulsa Ctrl+C para detener")
+    logger.info("Scheduler activo — slots: 11:45(Telegram+X hilo) 22:30 23:30")
+    logger.info("1 post diario en Telegram y hilo en X (~12:00 ±15min) | Pulsa Ctrl+C para detener")
 
     while True:
         try:
