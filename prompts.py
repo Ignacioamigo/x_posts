@@ -152,43 +152,118 @@ Responde SOLO con tweet y telegram, sin explicaciones.
 """
 
 # ---------------------------------------------------------------------------
-# Hilo diario en X (~12:00) — 3 tweets
+# Hilo diario en X (~12:00) — 2-3 tweets con formato ➔
 # ---------------------------------------------------------------------------
 DAILY_X_THREAD_PROMPT = """\
-Genera un HILO de 3 tweets en español para publicar el pick del día en X (Twitter).
-Tono: analista experto, directo, sin sensacionalismo.
+Genera un HILO de 2 o 3 tweets en español con análisis estadístico detallado para este pick.
+Usa el mínimo de tweets necesario para incluir todo el análisis respetando el límite de 280 caracteres por tweet.
+Usa el formato exacto con flechas ➔. Tono: analista experto, datos concretos y plausibles.
 
 Partido: {player1} vs {player2}
 Torneo: {tournament}
-Pick: {recommended_player} @ {odd} Bet365
+Deporte: {sport_label}
+Pick recomendado: {recommended_player} @ {odd} Bet365
 EV estimado: {ev:.1f}%
 Prob. estimada: {prob:.1f}%
 Confianza: {confianza}
 Razón: {razon}
 Factores clave: {factores}
 
-TWEET 1 — GANCHO (max 260 chars):
-- Empieza con emoji según deporte (🎯 dardos, 🤾 balonmano)
-- Presenta el partido con un dato técnico concreto y llamativo de {recommended_player}
-- Cierra con "👇" para indicar que continúa
-- NO incluyas pick ni cuota aquí
+TWEET 1 — CABECERA + ANÁLISIS (max 275 chars):
+Primera línea EXACTA: "📊 {player1} vs {player2} - {sport_label} ({tournament})"
+Línea vacía
+Luego 4-5 líneas de análisis con este formato EXACTO (una por línea):
+"[Sujeto] ➔ [dato estadístico concreto]. [Nombre del mercado]"
 
-TWEET 2 — ANÁLISIS (max 275 chars):
-- Desarrolla la razón por la que {recommended_player} tiene ventaja, usa los factores clave
-- Incluye: "EV: +{ev:.1f}% | Prob: {prob:.1f}% | Confianza: {confianza}"
-- NO incluyas ningún enlace aquí
+El SUJETO puede ser: un jugador concreto, un equipo, H2H, una estadística general del partido o un mercado específico.
+MIX OBLIGATORIO: al menos 2 líneas sobre jugadores/equipos individuales Y al menos 2 líneas sobre estadísticas generales del partido (H2H, totales, racha, over/under, etc.).
 
-TWEET 3 — PICK Y CIERRE (max 250 chars):
-- Primera línea: "✅ Pick: {recommended_player} @ {odd} Bet365"
-- Segunda línea: stake recomendado ("Stake: 1u") y una frase de cierre breve
-- Última línea (elige una al azar): "Canal completo 👇 t.me/frikipickss" O "Más picks en mi bio 👆"
+Ejemplos de líneas de JUGADOR/EQUIPO:
+  "van Gerwen ➔ Average de 102.4 en sus últimos 6 partidos. Victoria"
+  "Kiel ➔ 4 victorias consecutivas como local esta temporada. Gana partido"
+  "Gidsel ➔ 8.3 goles por partido como media. +7.5 Goles jugador"
+
+Ejemplos de líneas de ESTADÍSTICA GENERAL:
+  "H2H ➔ van Gerwen gana 7 de los últimos 10 enfrentamientos. Victoria"
+  "Ambos equipos marcan ➔ Se da en 5/6 últimos H2H. Sí BTTS"
+  "Sets ➔ Se han jugado 5 o más sets en 4/5 últimos duelos. +4.5 Sets"
+  "Goles ➔ Media de 61.2 entre estos dos equipos en casa. +55.5 Goles"
+  "Saques ➔ Equipo local promedia 14 aces por partido. +12.5 Aces"
+  "Racha ➔ El local ha ganado el primer set en 6/7 partidos. Gana 1º Set"
+Termina con "👇"
+
+TWEET 2 — MÁS ANÁLISIS (max 275 chars):
+3-4 líneas más de análisis con el mismo mix (jugadores + estadísticas generales)
+Si el pick cabe aquí sin superar 275 chars, añádelo al final de este tweet (línea vacía + línea del pick).
+Si no cabe, termina este tweet con "👇" y pasa el pick al tweet 3.
+
+TWEET 3 — PICK (solo si no cupó en el tweet 2, max 240 chars):
+Última línea EXACTA: "✅ Pick: {recommended_player} @ {odd} | 1u | EV: +{ev:.1f}%"
 
 REGLAS ESTRICTAS:
 - PROHIBIDO usar: "apuesta", "apuestas", "bet", "bets", "garantizado", "seguro"
 - USA en su lugar: "value", "análisis", "pick", "lectura", "criterio"
-- PROHIBIDO cualquier URL excepto t.me/frikipickss en el tweet 3
-- Sin hashtags. Separa los 3 tweets ÚNICAMENTE con esta línea: ---
-- Responde SOLO con los 3 tweets, sin numeración ni explicaciones.
+- Los datos estadísticos deben ser PLAUSIBLES y coherentes con los factores clave dados
+- PROHIBIDO cualquier URL, enlace, t.me, http, telegram, dominio
+- Sin hashtags. Separa los tweets ÚNICAMENTE con esta línea: ---
+- Responde SOLO con los tweets necesarios, sin numeración ni explicaciones.
+"""
+
+# ---------------------------------------------------------------------------
+# Fútbol — hilo diario en X con análisis estadístico (sin cuotas)
+# ---------------------------------------------------------------------------
+FOOTBALL_X_THREAD_PROMPT = """\
+Hoy es {date}. Eres un analista deportivo experto en fútbol europeo.
+
+PASO 1 — Busca en tiempo real el partido de fútbol más relevante disponible HOY siguiendo EXACTAMENTE este orden de prioridad:
+1. Real Madrid, FC Barcelona o Atlético de Madrid (LaLiga, Champions o Europa League)
+2. Otro equipo de LaLiga en zona europea (Real Sociedad, Villarreal, Betis, Sevilla, Valencia)
+3. Champions League o Europa League (elige el partido con el equipo más grande)
+4. Premier League o Serie A (Manchester City, Liverpool, Arsenal, Inter, Juventus, Milan)
+
+PASO 2 — Para el partido elegido, busca y verifica:
+- Alineación PROBABLE de ambos equipos con jugadores reales y actuales de la plantilla
+- Forma reciente de ambos equipos (últimos 5 partidos: resultados y goles)
+- H2H relevante entre estos dos equipos
+- Lesionados, sancionados o dudas importantes
+- Estadísticas de mercados: media de goles por partido, córners, tarjetas amarillas, resultado al descanso
+
+PASO 3 — Genera un HILO de 2 o 3 tweets usando el mínimo necesario para respetar el límite de 280 caracteres por tweet.
+
+TWEET 1 — CABECERA + ANÁLISIS (max 275 chars):
+Primera línea EXACTA: "📊 [Equipo 1] vs [Equipo 2] - Fútbol ([Competición])"
+Línea vacía
+4-5 líneas de análisis con este formato EXACTO:
+"[Jugador o Factor] ➔ [dato estadístico concreto y verificado]. [Mercado]"
+MIX OBLIGATORIO: mínimo 2 líneas sobre jugadores concretos (con su nombre real) Y mínimo 2 líneas sobre estadísticas generales del partido.
+Ejemplos de jugadores:
+  "Vinícius Jr. ➔ Promedia 3.1 tiros por partido esta temporada. +2.5 Tiros"
+  "Lewandowski ➔ 8 goles en los últimos 7 partidos de liga. Marca en el partido"
+Ejemplos de estadísticas generales:
+  "H2H ➔ El Madrid gana 4 de los últimos 5 encuentros directos. Victoria Madrid"
+  "Ambos equipos marcan ➔ Se da en 5/6 últimos partidos del Barça en casa. BTTS Sí"
+  "Goles ➔ Media de 3.1 goles entre estos equipos en liga esta temporada. +2.5 Goles"
+  "Córners ➔ Madrid genera 7.2 córners por partido en casa. +9.5 Córners"
+Termina con "👇"
+
+TWEET 2 — MÁS ANÁLISIS (max 275 chars):
+3-4 líneas más en el mismo formato "➔" (mix de jugadores y stats generales)
+Línea vacía
+Si el pick cabe sin superar 275 chars: añádelo aquí con esta línea EXACTA:
+"✅ Pick: [pick concreto] — análisis estadístico"
+Si no cabe: termina con "👇" y ponlo en el tweet 3.
+
+TWEET 3 — PICK (solo si no cupó en tweet 2, max 240 chars):
+"✅ Pick: [pick concreto] — análisis estadístico"
+
+REGLAS ESTRICTAS:
+- Usa SIEMPRE jugadores reales con sus nombres correctos y estadísticas verificadas
+- Ten en cuenta la alineación probable: no menciones jugadores lesionados o sancionados
+- PROHIBIDO: "apuesta", "apuestas", "bet", "bets", "garantizado", "seguro"
+- USA: "pick", "análisis", "lectura", "criterio"
+- Sin hashtags. Sin URLs. Sin cuotas numéricas de casas de apuestas.
+- Separa los tweets ÚNICAMENTE con esta línea: ---
+- Responde SOLO con los tweets, sin numeración ni explicaciones.
 """
 
 # ---------------------------------------------------------------------------

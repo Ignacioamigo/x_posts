@@ -37,6 +37,7 @@ from prompts import (
     PREVIA_PROMPT, DATO_TACTICO_PROMPT,
     THREAD_PROMPT, RESUMEN_DEPORTE_PROMPT,
     DAILY_X_PICK_PROMPT, DAILY_X_THREAD_PROMPT,
+    FOOTBALL_X_THREAD_PROMPT,
 )
 
 TESTING_MODE = os.getenv("TESTING_MODE", "false").lower() == "true"
@@ -452,11 +453,11 @@ def post_daily_x_pick(skip_jitter: bool = False):
         logger.info("Daily X pick: esperando %d seg (jitter)...", jitter)
         time.sleep(jitter)
 
-    logger.info("=== DAILY X PICK (HILO) ===")
+    logger.info("=== DAILY X PICK (mejor de 5 dardos + 5 balonmano) ===")
     now = datetime.now()
 
-    darts_picks    = _collect_candidates("darts",    now, max_picks=1)
-    handball_picks = _collect_candidates("handball", now, max_picks=1)
+    darts_picks    = _collect_candidates("darts",    now, max_picks=5)
+    handball_picks = _collect_candidates("handball", now, max_picks=5)
     all_picks = sorted(darts_picks + handball_picks, key=lambda x: x["ev"], reverse=True)
 
     if not all_picks:
@@ -468,10 +469,12 @@ def post_daily_x_pick(skip_jitter: bool = False):
         return
 
     pick = all_picks[0]
-    analysis = pick["analysis"]
+    analysis    = pick["analysis"]
     recommended = analysis.get("recommended_player", pick["player1"])
-    prob = (analysis["prob_player1"] if recommended == pick["player1"] else analysis["prob_player2"]) * 100
-    factores = ", ".join(analysis.get("factores_clave", []))
+    prob        = (analysis["prob_player1"] if recommended == pick["player1"] else analysis["prob_player2"]) * 100
+    factores    = ", ".join(analysis.get("factores_clave", []))
+
+    logger.info("Mejor pick: %s vs %s | EV=%.2f%% | %s", pick["player1"], pick["player2"], pick["ev"], pick["sport"])
 
     # --- Telegram ---
     try:
@@ -495,16 +498,18 @@ def post_daily_x_pick(skip_jitter: bool = False):
                 publicado_telegram=True,
                 publicado_x=False,
             )
-            logger.info("Pick diario publicado en Telegram: %s vs %s", pick["player1"], pick["player2"])
+            logger.info("Pick publicado en Telegram: %s vs %s", pick["player1"], pick["player2"])
     except Exception as e:
-        logger.error("Error publicando pick diario en Telegram: %s", e)
+        logger.error("Error publicando en Telegram: %s", e)
 
     # --- X (hilo) ---
     try:
+        sport_label = "Dardos PDC" if pick["sport"] == "darts" else "Balonmano"
         raw = _gemini_tweet(DAILY_X_THREAD_PROMPT.format(
             player1=pick["player1"],
             player2=pick["player2"],
             tournament=pick["tournament"],
+            sport_label=sport_label,
             recommended_player=recommended,
             odd=pick["odd"],
             ev=pick["ev"],
@@ -520,14 +525,57 @@ def post_daily_x_pick(skip_jitter: bool = False):
         else:
             n_encolados = publish_thread(tweets, x_counter_callback=_mark_x)
             if n_encolados:
-                logger.info(
-                    "Hilo X publicado (%d tweets encolados): %s vs %s",
-                    n_encolados, pick["player1"], pick["player2"],
-                )
+                logger.info("Hilo X encolado (%d tweets): %s vs %s", n_encolados, pick["player1"], pick["player2"])
     except Exception as e:
-        logger.error("Error en daily X pick (hilo): %s", e)
+        logger.error("Error en hilo X: %s", e)
 
     marcar_publicado_hoy("daily_x_pick")
+
+
+# ---------------------------------------------------------------------------
+# Fútbol — pick diario vía Gemini Search (sin scraping, sin cuotas)
+# ---------------------------------------------------------------------------
+
+def post_football_pick(skip_jitter: bool = False):
+    if ya_publicado_hoy("football_pick"):
+        logger.info("Football pick ya publicado hoy, skipping.")
+        return
+
+    if not skip_jitter:
+        jitter = random.randint(0, 20 * 60)  # ventana ±20 min
+        logger.info("Football pick: esperando %d seg (jitter)...", jitter)
+        time.sleep(jitter)
+
+    logger.info("=== FOOTBALL PICK ===")
+
+    if not can_post_x():
+        logger.info("Límite X alcanzado, no se publica football pick")
+        return
+
+    try:
+        from datetime import date as _date
+        today_str = datetime.now().strftime("%A %d de %B de %Y")
+
+        response = _gemini.models.generate_content(
+            model=_GEMINI_MODEL,
+            contents=FOOTBALL_X_THREAD_PROMPT.format(date=today_str),
+            config=_SEARCH_CONFIG,
+        )
+        raw = response.text.strip()
+
+        tweets = [_strip_links(t.strip()) for t in raw.split("---") if t.strip()]
+        if not tweets:
+            logger.error("Gemini no generó tweets para el football pick")
+            return
+
+        n_encolados = publish_thread(tweets, x_counter_callback=_mark_x)
+        if n_encolados:
+            logger.info("Football pick encolado (%d tweets)", n_encolados)
+
+        marcar_publicado_hoy("football_pick")
+
+    except Exception as e:
+        logger.error("Error en football pick: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +601,7 @@ def main():
     # Catch-up: ejecutar slots perdidos en las últimas 2 horas
     now = datetime.now()
     SLOTS = [
+        ("09:00", post_football_pick,   {"skip_jitter": True}),
         ("11:45", post_daily_x_pick,    {"skip_jitter": True}),
         ("22:30", resumen_handball,     {}),
         ("23:30", resumen_dardos,       {}),
@@ -566,12 +615,13 @@ def main():
             func(**kwargs)
 
     # Slots diarios
-    schedule.every().day.at("11:45").do(post_daily_x_pick)   # jitter interno → 11:45-12:15 | publica en Telegram + X
+    schedule.every().day.at("09:00").do(post_football_pick)   # jitter interno → 09:00-09:20 | solo X
+    schedule.every().day.at("11:45").do(post_daily_x_pick)    # jitter interno → 11:45-12:15 | Telegram + X
     schedule.every().day.at("22:30").do(resumen_handball)
     schedule.every().day.at("23:30").do(resumen_dardos)
     schedule.every().day.at("00:00").do(_reset_x_counter)
 
-    logger.info("Scheduler activo — slots: 11:45(Telegram+X hilo) 22:30 23:30")
+    logger.info("Scheduler activo — slots: 09:00(fútbol X) 11:45(dardos/balonmano Telegram+X) 22:30 23:30")
     logger.info("1 post diario en Telegram y hilo en X (~12:00 ±15min) | Pulsa Ctrl+C para detener")
 
     while True:
