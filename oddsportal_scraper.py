@@ -1,10 +1,13 @@
 """
-Scraper de OddsPortal con Selenium headless para obtener partidos
+Scraper de cuotasahora.com con Selenium headless para obtener partidos
 y cuotas de Bet365 directamente de la web.
+Usa JSON-LD (schema.org) para extraer nombres y horas, y Selenium para las cuotas.
 """
+import json
 import logging
+import re
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -15,26 +18,26 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 logger = logging.getLogger(__name__)
 
+BASE = "https://www.cuotasahora.com"
+
 URLS_DARTS = [
-    "https://www.oddsportal.com/darts/world/premier-league/",
-    "https://www.oddsportal.com/darts/world/modus-super-series/",
-    "https://www.oddsportal.com/darts/europe/european-tour-4/",
+    f"{BASE}/darts/world/premier-league/",
+    f"{BASE}/darts/world/modus-super-series/",
 ]
 
 URLS_HANDBALL = [
-    "https://www.oddsportal.com/handball/europe/champions-league/",
-    "https://www.oddsportal.com/handball/europe/european-league/",
-    "https://www.oddsportal.com/handball/spain/liga-asobal/",
-    "https://www.oddsportal.com/handball/germany/bundesliga/",
-    "https://www.oddsportal.com/handball/france/starligue/",
-    "https://www.oddsportal.com/handball/norway/rema-1000-ligaen/",
+    f"{BASE}/handball/germany/bundesliga/",
+    f"{BASE}/handball/spain/liga-asobal/",
+    f"{BASE}/handball/france/starligue/",
+    f"{BASE}/handball/denmark/herre-handbold-ligaen/",
+    f"{BASE}/handball/norway/rema-1000-ligaen/",
+    f"{BASE}/handball/poland/superliga/",
+    f"{BASE}/handball/croatia/premijer-liga/",
 ]
 
 
 def _build_driver() -> webdriver.Chrome:
     opts = Options()
-
-    # Flags esenciales para Linux server / contenedor sin pantalla
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
@@ -53,13 +56,12 @@ def _build_driver() -> webdriver.Chrome:
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     )
 
-    # Buscar binario de Chrome/Chromium instalado en Linux
     import shutil
     for binary in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
         path = shutil.which(binary)
         if path:
             opts.binary_location = path
-            logger.info("Chrome binario encontrado: %s", path)
+            logger.info("Chrome binario: %s", path)
             break
 
     service = Service(ChromeDriverManager().install())
@@ -69,244 +71,258 @@ def _build_driver() -> webdriver.Chrome:
 
 
 def _dismiss_cookie_banner(driver: webdriver.Chrome):
-    """Cierra el banner de cookies si aparece."""
-    try:
-        btn = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH,
-                "//*[contains(@id,'accept') or contains(@class,'accept') "
-                "or contains(text(),'Accept') or contains(text(),'Aceptar')]"
-            ))
-        )
-        btn.click()
-        time.sleep(0.5)
-    except Exception:
-        pass
-
-
-def _parse_time(time_str: str) -> str | None:
-    """Convierte la hora de OddsPortal (HH:MM) a string. Devuelve None si no es válida."""
-    try:
-        datetime.strptime(time_str.strip(), "%H:%M")
-        return time_str.strip()
-    except ValueError:
-        return None
-
-
-def scrape_oddsportal(url: str, sport: str) -> list[dict]:
-    """
-    Abre la URL con Selenium headless y extrae partidos con cuotas Bet365.
-    Devuelve lista de dicts: {player1, player2, sport, time, tournament, odd_p1, odd_p2}
-    """
-    driver = None
-    matches = []
-
-    try:
-        logger.info("Abriendo OddsPortal: %s", url)
-        driver = _build_driver()
-        driver.get(url)
-
-        _dismiss_cookie_banner(driver)
-
-        # Esperar a que carguen las filas de partidos
-        logger.info("Esperando carga de partidos...")
+    """Cierra el banner de cookies y el modal de verificación de edad."""
+    xpaths = [
+        "//*[contains(text(),'MAYOR DE 18')]",
+        "//*[contains(text(),'Mayor de 18')]",
+        "//*[contains(@id,'accept') or contains(@class,'accept')]",
+        "//*[contains(text(),'Accept') or contains(text(),'Aceptar')]",
+    ]
+    for xpath in xpaths:
         try:
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "[class*='eventRow']"))
-            )
+            btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+            btn.click()
+            time.sleep(0.5)
         except Exception:
-            logger.warning("Timeout esperando eventRow, intentando parsear lo que hay...")
-
-        time.sleep(3)  # margen extra para JS asíncrono
-
-        # Extraer HTML para debug
-        page_source = driver.page_source
-        logger.debug("Tamaño página: %d chars", len(page_source))
-
-        # ── Buscar filas de partidos ──────────────────────────────────────────
-        row_selectors = [
-            "[class*='eventRow']",
-            "[class*='event-row']",
-            "div[class*='border-black-borders']",
-            "div[class*='group flex']",
-        ]
-
-        rows = []
-        for sel in row_selectors:
-            rows = driver.find_elements(By.CSS_SELECTOR, sel)
-            if rows:
-                logger.info("Selector '%s' encontró %d filas", sel, len(rows))
-                break
-
-        if not rows:
-            logger.warning("No se encontraron filas de partidos en %s", url)
-            return []
-
-        today = date.today()
-        now   = datetime.now()
-        tournament = _extract_tournament_from_url(url)
-
-        for row in rows:
-            try:
-                match = _parse_row(row, sport, today, now, tournament)
-                if match:
-                    matches.append(match)
-            except Exception as e:
-                logger.debug("Error parseando fila: %s", e)
-
-        logger.info("Partidos extraídos de OddsPortal: %d", len(matches))
-
-    except Exception as e:
-        logger.error("Error en scrape_oddsportal(%s): %s", url, e)
-    finally:
-        if driver:
-            driver.quit()
-
-    return matches
+            pass
 
 
 def _extract_tournament_from_url(url: str) -> str:
-    """Extrae nombre de torneo de la URL."""
-    parts = [p for p in url.rstrip("/").split("/") if p and "oddsportal" not in p and "http" not in p]
+    parts = [p for p in url.rstrip("/").split("/") if p and "cuotasahora" not in p and "http" not in p]
     if parts:
         return parts[-1].replace("-", " ").title()
     return ""
 
 
-def _parse_row(row, sport: str, today: date, now: datetime, tournament: str) -> dict | None:
-    """Extrae datos de una fila de partido."""
+def _parse_jsonld_matches(page_source: str, sport: str, tournament: str) -> list[dict]:
+    """
+    Extrae partidos del JSON-LD (schema.org) incrustado en el HTML.
+    Devuelve lista de dicts con player1, player2, time — sin cuotas aún.
+    """
+    matches = []
+    now = datetime.now()
+    today = date.today()
 
-    row_text = row.text.strip()
-    if not row_text or len(row_text) < 5:
-        return None
+    pattern = re.compile(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.DOTALL)
+    for m in pattern.finditer(page_source):
+        try:
+            data = json.loads(m.group(1))
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                types = item.get("@type", [])
+                if isinstance(types, str):
+                    types = [types]
+                if not any(t in types for t in ("SportsEvent", "Event")):
+                    continue
 
-    # ── Hora ────────────────────────────────────────────────────────────────
-    hora = None
-    time_selectors = [
-        "[class*='table-time']", "[class*='time']",
-        "p[class*='date']", "div[class*='date']",
-    ]
-    for sel in time_selectors:
-        elems = row.find_elements(By.CSS_SELECTOR, sel)
-        for el in elems:
-            t = _parse_time(el.text)
-            if t:
-                hora = t
-                break
-        if hora:
-            break
+                name = item.get("name", "")
+                start_date = item.get("startDate", "")
+                if not name or not start_date or " - " not in name:
+                    continue
 
-    # Si no encontramos hora en atributo, buscar patrón HH:MM en el texto
-    if not hora:
-        import re
-        m = re.search(r'\b(\d{1,2}:\d{2})\b', row_text)
-        if m:
-            hora = _parse_time(m.group(1))
+                p1, p2 = [x.strip() for x in name.split(" - ", 1)]
+                placeholders = {"tba", "tbd", "?", "-", ""}
+                if p1.lower() in placeholders or p2.lower() in placeholders:
+                    continue
 
-    # ── Jugadores ────────────────────────────────────────────────────────────
-    player_selectors = [
-        "[class*='participant']", "[class*='team-name']",
-        "p[class*='name']", "a[class*='participant']",
-    ]
-    players = []
-    for sel in player_selectors:
-        elems = row.find_elements(By.CSS_SELECTOR, sel)
-        names = [e.text.strip() for e in elems if e.text.strip()]
-        if len(names) >= 2:
-            players = names[:2]
-            break
+                # Parsear hora
+                try:
+                    dt = datetime.fromisoformat(start_date)
+                    # Convertir a hora local si tiene timezone
+                    if dt.tzinfo is not None:
+                        dt = dt.astimezone().replace(tzinfo=None)
+                    if dt.date() != today:
+                        continue
+                    if dt <= now:
+                        continue
+                    hora = dt.strftime("%H:%M")
+                except Exception:
+                    continue
 
-    if len(players) < 2:
-        return None
+                matches.append({
+                    "player1":    p1,
+                    "player2":    p2,
+                    "sport":      sport,
+                    "time":       hora,
+                    "tournament": tournament,
+                    "odd_p1":     None,
+                    "odd_p2":     None,
+                    "match_url":  item.get("url", ""),
+                })
+        except Exception as e:
+            logger.debug("Error parseando JSON-LD: %s", e)
 
-    player1, player2 = players[0], players[1]
-    placeholders = {"tba", "tbd", "?", "-", ""}
-    if player1.lower() in placeholders or player2.lower() in placeholders:
-        return None
+    return matches
 
-    # ── Cuotas Bet365 ────────────────────────────────────────────────────────
-    # Los <p class*='height-content'> son exactamente los textos de cada cuota,
-    # sin incluir los encabezados 1/X/2 que tienen otras clases.
-    # OddsPortal: 2 valores → dardos (1|2) / 3 valores → balonmano (1|X|2).
-    odd_p1, odd_p2 = None, None
-    try:
-        odds_cells = row.find_elements(By.CSS_SELECTOR, "p[class*='height-content']")
-        odds_vals = []
-        for el in odds_cells:
+
+def _parse_odds_from_body_text(body_text: str) -> dict:
+    """
+    Parsea el texto visible del body para extraer cuotas por partido.
+    Estructura en cuotasahora.com:
+        HH:MM
+        Equipo1
+        –
+        Equipo2
+        odd1
+        oddX   (solo si 3 columnas: balonmano)
+        odd2
+    Devuelve dict: { "equipo1 vs equipo2": (odd_p1, odd_p2) }
+    """
+    result = {}
+    lines = [l.strip() for l in body_text.split("\n") if l.strip()]
+
+    i = 0
+    while i < len(lines):
+        # Detectar línea de hora HH:MM
+        if not re.match(r'^\d{1,2}:\d{2}$', lines[i]):
+            i += 1
+            continue
+
+        # Estructura esperada: time, team1, –, team2, odds...
+        if i + 3 >= len(lines):
+            i += 1
+            continue
+
+        team1 = lines[i + 1]
+        sep   = lines[i + 2]
+        team2 = lines[i + 3]
+
+        if sep != "–" or not team1 or not team2:
+            i += 1
+            continue
+
+        # Leer cuotas a partir de i+4
+        odds = []
+        j = i + 4
+        while j < len(lines) and len(odds) < 3:
             try:
-                val = float(el.text.strip())
+                val = float(lines[j])
                 if 1.01 <= val <= 50:
-                    odds_vals.append(val)
+                    odds.append(val)
+                    j += 1
+                else:
+                    break
             except ValueError:
-                pass
+                break
 
-        if len(odds_vals) >= 3:
-            # 3 columnas: 1 (local) | X (empate) | 2 (visitante) → coger 0 y 2
-            odd_p1, odd_p2 = odds_vals[0], odds_vals[2]
-        elif len(odds_vals) == 2:
-            # 2 columnas: p1 | p2 (dardos, sin empate)
-            odd_p1, odd_p2 = odds_vals[0], odds_vals[1]
-    except Exception:
-        pass
+        if len(odds) >= 2:
+            odd_p1 = odds[0]
+            odd_p2 = odds[-1]  # último: visitante (tanto en 2 como en 3 columnas)
+            key = f"{team1.lower()}||{team2.lower()}"
+            result[key] = (odd_p1, odd_p2)
+            logger.debug("Cuotas parseadas: %s @ %.2f vs %s @ %.2f", team1, odd_p1, team2, odd_p2)
+            i = j
+        else:
+            i += 1
 
-    # ── Filtrar solo partidos futuros de hoy ─────────────────────────────────
-    if not hora or hora == "?":
-        return None  # sin hora confirmada → descartar (puede ser partido ya jugado)
+    return result
+
+
+def _extract_odds_from_page(driver: webdriver.Chrome, matches: list[dict]) -> list[dict]:
+    """
+    Extrae cuotas del texto visible del body y las asigna a los partidos ya identificados.
+    """
+    if not matches:
+        return matches
+
     try:
-        match_dt = datetime.strptime(f"{today} {hora}", "%Y-%m-%d %H:%M")
-        if match_dt <= now:
-            return None  # ya empezó
-    except ValueError:
-        return None  # hora no parseable → descartar
+        time.sleep(3)
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        odds_map = _parse_odds_from_body_text(body_text)
 
-    return {
-        "player1":    player1,
-        "player2":    player2,
-        "sport":      sport,
-        "time":       hora or "?",
-        "tournament": tournament,
-        "odd_p1":     odd_p1,
-        "odd_p2":     odd_p2,
-    }
+        for match in matches:
+            p1 = match["player1"].lower()
+            p2 = match["player2"].lower()
+            key = f"{p1}||{p2}"
+
+            if key in odds_map:
+                match["odd_p1"], match["odd_p2"] = odds_map[key]
+            else:
+                # Búsqueda parcial flexible: cualquier palabra clave del nombre
+                p1_words = [w for w in p1.split() if len(w) >= 4]
+                p2_words = [w for w in p2.split() if len(w) >= 4]
+                for k, (o1, o2) in odds_map.items():
+                    t1, t2 = k.split("||")
+                    match1 = any(w in t1 for w in p1_words) if p1_words else p1[:5] in t1
+                    match2 = any(w in t2 for w in p2_words) if p2_words else p2[:5] in t2
+                    if match1 and match2:
+                        match["odd_p1"], match["odd_p2"] = o1, o2
+                        logger.debug("Match parcial: %s → %s (%.2f/%.2f)", p1, k, o1, o2)
+                        break
+
+    except Exception as e:
+        logger.error("Error extrayendo cuotas: %s", e)
+
+    return matches
+
+
+
+def _scrape_urls(urls: list[str], sport: str) -> list[dict]:
+    """Scrape múltiples URLs reutilizando un único driver para evitar bloqueos."""
+    seen = set()
+    all_matches = []
+    driver = None
+
+    try:
+        driver = _build_driver()
+        for url in urls:
+            try:
+                logger.info("Abriendo cuotasahora: %s", url)
+                driver.get(url)
+                time.sleep(4)  # esperar carga JS
+
+                current_url = driver.current_url
+                sport_path = f"/{sport}/"
+                if sport_path not in current_url:
+                    logger.warning("Redirección inesperada: %s → %s", url, current_url)
+                    continue
+
+                _dismiss_cookie_banner(driver)
+
+                page_source = driver.page_source
+                tournament = _extract_tournament_from_url(url)
+                matches = _parse_jsonld_matches(page_source, sport, tournament)
+                logger.info("JSON-LD: %d partidos en %s", len(matches), tournament)
+
+                if matches:
+                    matches = _extract_odds_from_page(driver, matches)
+                    for m in matches:
+                        key = (m["player1"].lower(), m["player2"].lower())
+                        if key not in seen:
+                            seen.add(key)
+                            all_matches.append(m)
+
+                time.sleep(2)  # pausa entre URLs
+
+            except Exception as e:
+                logger.error("Error scrapeando %s: %s", url, e)
+
+    except Exception as e:
+        logger.error("Error creando driver: %s", e)
+    finally:
+        if driver:
+            driver.quit()
+
+    return all_matches
 
 
 def scrape_all_darts() -> list[dict]:
-    """Scrape todas las URLs de dardos y devuelve lista unificada sin duplicados."""
-    seen = set()
-    all_matches = []
-    for url in URLS_DARTS:
-        for m in scrape_oddsportal(url, "darts"):
-            key = (m["player1"].lower(), m["player2"].lower())
-            if key not in seen:
-                seen.add(key)
-                all_matches.append(m)
-    return all_matches
+    return _scrape_urls(URLS_DARTS, "darts")
 
 
 def scrape_all_handball() -> list[dict]:
-    """Scrape todas las URLs de balonmano y devuelve lista unificada sin duplicados."""
-    seen = set()
-    all_matches = []
-    for url in URLS_HANDBALL:
-        for m in scrape_oddsportal(url, "handball"):
-            key = (m["player1"].lower(), m["player2"].lower())
-            if key not in seen:
-                seen.add(key)
-                all_matches.append(m)
-    return all_matches
+    return _scrape_urls(URLS_HANDBALL, "handball")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    for url in URLS_DARTS:
-        print(f"\n{'='*60}")
-        print(f"URL: {url}")
-        print('='*60)
-        results = scrape_oddsportal(url, "darts")
-        if results:
-            print(f"✅ {len(results)} partidos encontrados:\n")
-            for m in results:
-                odd_str = f"Bet365: {m['odd_p1']} / {m['odd_p2']}" if m['odd_p1'] else "Sin cuotas Bet365"
-                print(f"  {m['time']} | {m['player1']} vs {m['player2']} | {m['tournament']} | {odd_str}")
-        else:
-            print("❌ Sin partidos encontrados")
+    print("\n=== DARDOS ===")
+    for m in scrape_all_darts():
+        cuota = f"{m['odd_p1']} / {m['odd_p2']}" if m["odd_p1"] else "sin cuota"
+        print(f"  {m['time']} | {m['tournament']:25} | {m['player1']} vs {m['player2']} | {cuota}")
+
+    print("\n=== BALONMANO ===")
+    for m in scrape_all_handball():
+        cuota = f"{m['odd_p1']} / {m['odd_p2']}" if m["odd_p1"] else "sin cuota"
+        print(f"  {m['time']} | {m['tournament']:25} | {m['player1']} vs {m['player2']} | {cuota}")
