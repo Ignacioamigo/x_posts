@@ -601,8 +601,8 @@ def main():
     # Catch-up: ejecutar slots perdidos en las últimas 2 horas
     now = datetime.now()
     SLOTS = [
-        ("09:00", post_football_pick,   {"skip_jitter": True}),
-        ("11:45", post_daily_x_pick,    {"skip_jitter": True}),
+        ("11:30", post_daily_x_pick,    {"skip_jitter": True}),
+        ("13:30", post_football_pick,   {"skip_jitter": True}),
         ("22:30", resumen_handball,     {}),
         ("23:30", resumen_dardos,       {}),
     ]
@@ -615,13 +615,13 @@ def main():
             func(**kwargs)
 
     # Slots diarios
-    schedule.every().day.at("09:00").do(post_football_pick)   # jitter interno → 09:00-09:20 | solo X
-    schedule.every().day.at("11:45").do(post_daily_x_pick)    # jitter interno → 11:45-12:15 | Telegram + X
+    schedule.every().day.at("11:30").do(post_daily_x_pick)    # jitter interno → 11:30-12:00 | Telegram + X
+    schedule.every().day.at("13:30").do(post_football_pick)   # jitter interno → 13:30-13:50 | solo X
     schedule.every().day.at("22:30").do(resumen_handball)
     schedule.every().day.at("23:30").do(resumen_dardos)
     schedule.every().day.at("00:00").do(_reset_x_counter)
 
-    logger.info("Scheduler activo — slots: 09:00(fútbol X) 11:45(dardos/balonmano Telegram+X) 22:30 23:30")
+    logger.info("Scheduler activo — slots: 11:30(dardos/balonmano Telegram+X) 13:30(fútbol X) 22:30 23:30")
     logger.info("1 post diario en Telegram y hilo en X (~12:00 ±15min) | Pulsa Ctrl+C para detener")
 
     while True:
