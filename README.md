@@ -30,24 +30,29 @@ flashscore.com          dartsdata.co.uk
            publisher.py (Automated Alerts)
            ├── Telegram API (Webhooks / Direct Messaging)
            └── X/Twitter API (Rate-limiting handling & Message Queuing)
+```
 
+**Key Design Principle:** The LLM acts solely as a statistical inference engine. Final decisions are executed by a deterministic `detect_value()` algorithm based on transparent mathematical rules, ensuring strict control over AI hallucinations.
 
+---
+
+## 🚀 Core Technologies & Skills
+
+* **Python 3.11+**: Primary language for the pipeline.
+* **Web Scraping & DOM Parsing**: Dynamic data extraction bypassing anti-bot mechanisms.
+* **LLM Integration**: Prompt engineering and JSON response parsing with Google AI Studio (Gemini).
+* **Automation & Cron Jobs**: Periodic task orchestration (`scheduler.py`).
+* **REST API Integration**: Secure communication with Telegram and X/Twitter.
+
+---
+
+## 🛠️ Local Installation & Deployment
+
+```bash
 # 1. Clone the repository
 cd predictive_analytics_bot/
 
 # 2. Set up an isolated virtual environment
 python -m venv venv
-source venv/bin/activate        # Linux/Mac
-# venv\Scripts\activate         # Windows
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Configure environment variables (.env)
-cp .env.example .env
-# You must inject your real credentials into the .env file
-
-
-
-# Start the orchestrator
-python scheduler.py
+source venv/bin/activate
+```
